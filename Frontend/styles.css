@@ -167,3 +167,12 @@ section {
     transform: translateX(5px);
   }
 }
+
+.logout-message {
+  color: #27ae60;
+  margin: 15px 0;
+  padding: 10px;
+  background-color: #e8f5e9;
+  border-radius: 4px;
+  display: none;
+}

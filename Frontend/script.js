@@ -1,20 +1,86 @@
 // Configuração da API
-const API_BASE_URL = "http:147.79.104.68:5001/"; //URL DA API de Produção
+const API_BASE_URL = "http://147.79.104.68:5001"; // URL corrigida
+
 // Elementos do DOM
 let loginForm, errorMessage, logoutBtn;
 
-// Verifica se estamos na página de login ou dashboard
-if (document.querySelector("#loginForm")) {
-  // Elementos da página de login
-  loginForm = document.getElementById("loginForm");
-  errorMessage = document.getElementById("errorMessage");
+// Verifica parâmetros de URL para mensagem de logout
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.has("logout")) {
+  const logoutMessage = document.getElementById("logoutMessage");
+  if (logoutMessage) {
+    logoutMessage.textContent = "Você saiu do sistema com sucesso.";
+    logoutMessage.style.display = "block";
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+}
 
-  // Evento de submit do formulário de login
+// Função para exibir mensagens de erro
+function showError(message, isLoginError = false) {
+  if (!errorMessage) errorMessage = document.getElementById("errorMessage");
+  if (!errorMessage) return;
+
+  errorMessage.textContent = message;
+  errorMessage.style.display = "block";
+  errorMessage.className = isLoginError
+    ? "error-message login-error"
+    : "error-message";
+
+  setTimeout(() => {
+    errorMessage.style.display = "none";
+  }, 5000);
+}
+
+// Função para fazer logout
+async function handleLogout() {
+  const logoutBtn = document.getElementById("logoutBtn");
+  if (logoutBtn) {
+    logoutBtn.textContent = "Saindo...";
+    logoutBtn.disabled = true;
+  }
+
+  // Limpa o token após um pequeno delay para feedback visual
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  localStorage.removeItem("embryotech_token");
+
+  // Redireciona apenas uma vez
+  window.location.href = "index.html?logout=success";
+}
+
+// Função principal de inicialização
+function init() {
+  // Verifica se estamos na página de login
+  if (
+    window.location.pathname.endsWith("index.html") ||
+    window.location.pathname === "/"
+  ) {
+    setupLoginPage();
+  }
+  // Verifica se estamos na página de dashboard
+  else if (window.location.pathname.endsWith("dashboard.html")) {
+    setupDashboardPage();
+  }
+}
+
+// Configura a página de login
+function setupLoginPage() {
+  loginForm = document.getElementById("loginForm");
+  if (!loginForm) return;
+
+  // Verifica se já está logado (redireciona se positivo)
+  const token = localStorage.getItem("embryotech_token");
+  if (token) {
+    window.location.href = "dashboard.html";
+    return;
+  }
+
+  // Configura o evento de login
   loginForm.addEventListener("submit", async (e) => {
     e.preventDefault();
 
     const username = document.getElementById("username").value.trim();
     const password = document.getElementById("password").value.trim();
+    const submitBtn = loginForm.querySelector('button[type="submit"]');
 
     // Validação básica no cliente
     if (!username || !password) {
@@ -22,24 +88,16 @@ if (document.querySelector("#loginForm")) {
       return;
     }
 
-    const submitBtn = loginForm.querySelector('button[type="submit"]');
+    // Feedback visual
     const originalBtnText = submitBtn.textContent;
-
-    // Mostra feedback visual
     submitBtn.disabled = true;
     submitBtn.textContent = "Autenticando...";
-    submitBtn.style.opacity = "1";
 
     try {
       const response = await fetch(`${API_BASE_URL}/login`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          username,
-          password,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
       });
 
       const data = await response.json();
@@ -48,18 +106,7 @@ if (document.querySelector("#loginForm")) {
         localStorage.setItem("embryotech_token", data.token);
         window.location.href = "dashboard.html";
       } else {
-        // Mensagens personalizadas baseadas no status da resposta
-        let errorMsg = "Erro ao fazer login";
-
-        if (response.status === 400) {
-          errorMsg = "Nome de usuário e senha são obrigatórios";
-        } else if (response.status === 401) {
-          errorMsg = "Usuário ou senha incorretos";
-        } else if (response.status === 500) {
-          errorMsg = "Problema no servidor. Tente novamente mais tarde.";
-        }
-
-        showError(errorMsg, true);
+        handleLoginError(response.status);
       }
     } catch (error) {
       showError(
@@ -67,163 +114,141 @@ if (document.querySelector("#loginForm")) {
         true
       );
     } finally {
-      // Restaura o botão
       submitBtn.disabled = false;
       submitBtn.textContent = originalBtnText;
-      submitBtn.style.opacity = "1";
     }
   });
+}
 
-  // Verifica se o usuário está autenticado
+// Trata erros de login
+function handleLoginError(status) {
+  switch (status) {
+    case 400:
+      showError("Nome de usuário e senha são obrigatórios", true);
+      break;
+    case 401:
+      showError("Usuário ou senha incorretos", true);
+      break;
+    case 500:
+      showError("Problema no servidor. Tente novamente mais tarde.", true);
+      break;
+    default:
+      showError("Erro ao fazer login", true);
+  }
+}
+
+// Configura a página de dashboard
+function setupDashboardPage() {
+  // Verifica autenticação
   const token = localStorage.getItem("embryotech_token");
   if (!token) {
-    window.location.href = "index.html";
-  } else {
-    // Carrega os dados das leituras
-    loadReadings();
-  }
-}
-
-// Função para exibir mensagens de erro
-function showError(message, isLoginError = false) {
-  errorMessage.textContent = message;
-  errorMessage.style.display = "block";
-
-  // Adiciona classe específica para erros de login
-  if (isLoginError) {
-    errorMessage.classList.add("login-error");
-  } else {
-    errorMessage.classList.remove("login-error");
+    handleLogout();
+    return;
   }
 
-  setTimeout(() => {
-    errorMessage.style.display = "none";
-  }, 5000);
+  // Configura o botão de logout
+  logoutBtn = document.getElementById("logoutBtn");
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      handleLogout();
+    });
+  }
+
+  // Carrega as leituras
+  loadReadings();
 }
 
-// Função para carregar as leituras
+// Função para carregar as leituras (mantida como no original)
 async function loadReadings() {
   try {
     const token = localStorage.getItem("embryotech_token");
-
-    // Busca todas as leituras
     const response = await fetch(`${API_BASE_URL}/leituras`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { Authorization: `Bearer ${token}` },
     });
 
     if (!response.ok) {
-      if (response.status === 401) {
-        // Token inválido, faz logout
-        localStorage.removeItem("embryotech_token");
-        window.location.href = "index.html";
-        return;
-      }
+      if (response.status === 401) handleLogout();
       throw new Error("Erro ao carregar leituras");
     }
 
     const readings = await response.json();
-
-    // Ordena as leituras pela data mais recente primeiro
     readings.sort(
       (a, b) => new Date(b.data_inicial) - new Date(a.data_inicial)
     );
 
-    // Exibe a última leitura
     displayLastReading(readings[0]);
-
-    // Exibe a lista de leituras
     displayReadingsList(readings);
   } catch (error) {
     console.error("Erro:", error);
-    alert("Erro ao carregar leituras");
+    showError("Erro ao carregar leituras");
   }
 }
 
-// Função para exibir a última leitura
+// Funções de exibição (mantidas como no original)
 function displayLastReading(reading) {
   const container = document.getElementById("lastReadingContainer");
+  if (!container) return;
 
-  if (!reading) {
-    container.innerHTML = "<p>Nenhuma leitura encontrada</p>";
-    return;
-  }
-
-  container.innerHTML = `
+  container.innerHTML = reading
+    ? `
         <div class="reading-details">
-            <div class="reading-row">
-                <span>Temperatura:</span>
-                <span class="reading-value">${reading.temperatura} °C</span>
-            </div>
-            <div class="reading-row">
-                <span>Umidade:</span>
-                <span class="reading-value">${reading.umidade}%</span>
-            </div>
-            <div class="reading-row">
-                <span>Pressão:</span>
-                <span class="reading-value">${reading.pressao} atm</span>
-            </div>
-            <div class="reading-row">
-                <span>Lote:</span>
-                <span class="reading-lote">${reading.lote}</span>
-            </div>
-            <div class="reading-row">
-                <span>Período:</span>
-                <span class="reading-date">
-                    ${formatDate(reading.data_inicial)} até ${formatDate(
-    reading.data_final
-  )}
-                </span>
-            </div>
+            <div class="reading-row"><span>Temperatura:</span><span class="reading-value">${
+              reading.temperatura
+            } °C</span></div>
+            <div class="reading-row"><span>Umidade:</span><span class="reading-value">${
+              reading.umidade
+            }%</span></div>
+            <div class="reading-row"><span>Pressão:</span><span class="reading-value">${
+              reading.pressao
+            } atm</span></div>
+            <div class="reading-row"><span>Lote:</span><span class="reading-lote">${
+              reading.lote
+            }</span></div>
+            <div class="reading-row"><span>Período:</span><span class="reading-date">${formatDate(
+              reading.data_inicial
+            )} até ${formatDate(reading.data_final)}</span></div>
         </div>
-    `;
+    `
+    : "<p>Nenhuma leitura encontrada</p>";
 }
 
-// Função para exibir a lista de leituras
 function displayReadingsList(readings) {
   const container = document.getElementById("readingsListContainer");
+  if (!container) return;
 
-  if (!readings || readings.length === 0) {
-    container.innerHTML = "<p>Nenhuma leitura encontrada</p>";
-    return;
-  }
-
-  let html = "";
-
-  readings.forEach((reading) => {
-    html += `
-            <div class="reading-item">
-                <div>
-                    <div class="reading-row">
-                        <span>${formatDate(reading.data_inicial)}</span>
-                        <span class="reading-lote">${reading.lote}</span>
-                    </div>
-                    <div class="reading-row">
-                        <span>${reading.temperatura} °C</span>
-                        <span>${reading.umidade}%</span>
-                        <span>${reading.pressao} atm</span>
-                    </div>
+  container.innerHTML = readings?.length
+    ? readings
+        .map(
+          (reading) => `
+        <div class="reading-item">
+            <div>
+                <div class="reading-row">
+                    <span>${formatDate(reading.data_inicial)}</span>
+                    <span class="reading-lote">${reading.lote}</span>
                 </div>
-                <button class="details-btn" data-id="${
-                  reading.id
-                }">Detalhes</button>
+                <div class="reading-row">
+                    <span>${reading.temperatura} °C</span>
+                    <span>${reading.umidade}%</span>
+                    <span>${reading.pressao} atm</span>
+                </div>
             </div>
-        `;
-  });
+            <button class="details-btn" data-id="${
+              reading.id
+            }">Detalhes</button>
+        </div>
+    `
+        )
+        .join("")
+    : "<p>Nenhuma leitura encontrada</p>";
 
-  container.innerHTML = html;
-
-  // Adiciona eventos aos botões de detalhes
   document.querySelectorAll(".details-btn").forEach((btn) => {
     btn.addEventListener("click", (e) => {
-      const readingId = e.target.getAttribute("data-id");
-      showReadingDetails(readingId);
+      showReadingDetails(e.target.getAttribute("data-id"));
     });
   });
 }
 
-// Função para formatar data
 function formatDate(dateString) {
   const options = {
     day: "2-digit",
@@ -235,8 +260,9 @@ function formatDate(dateString) {
   return new Date(dateString).toLocaleDateString("pt-BR", options);
 }
 
-// Função para mostrar detalhes de uma leitura (pode ser implementada posteriormente)
 function showReadingDetails(readingId) {
   alert(`Detalhes da leitura ${readingId}`);
-  // Aqui você pode implementar uma modal ou outra página com mais detalhes
 }
+
+// Inicializa a aplicação quando o DOM estiver pronto
+document.addEventListener("DOMContentLoaded", init);
