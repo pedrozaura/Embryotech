@@ -11,6 +11,7 @@ from extensions import db, migrate
 from flasgger import Swagger
 import secrets
 import os
+from flask import redirect, url_for
 
 from sqlalchemy.sql import text
 from datetime import timedelta
@@ -24,14 +25,49 @@ app.config.from_object(Config)
 
 db.init_app(app)
 migrate.init_app(app, db)
-swagger = Swagger(app)
+
+# Adicione esta configuração do Swagger antes das rotas
+swagger_template = {
+    "swagger": "2.0",
+    "info": {
+        "title": "Embryotech API  --  Outside Agrotech",
+        "description": "API para gerenciamento de usuários, itens e leituras de embriões",
+        "contact": {
+            "email": "pedro.zaura@outsideagro.tech"
+        },
+        "version": "1.0.1"
+    },
+    "basePath": "/",
+    "schemes": [
+        "http",
+        "https"
+    ],
+    "securityDefinitions": {
+        "Bearer": {
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header",
+            "description": "JWT Authorization header using the Bearer scheme. Example: \"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\""
+        }
+    },
+    "security": [
+        {
+            "Bearer": []
+        }
+    ]
+}
+
+
+swagger = Swagger(app, template=swagger_template)
 
 # Importar models após inicializar db para evitar import circular
 from models import User, Item, Leitura
 
 
-print("SECRET_KEY:", secrets.token_urlsafe(32))
-print("JWT_SECRET_KEY:", secrets.token_hex(32))
+#print("SECRET_KEY:", secrets.token_urlsafe(32))
+#print("JWT_SECRET_KEY:", secrets.token_hex(32))
+
+
 
 # Decorator para rotas que requerem autenticação
 def token_required(f):
@@ -40,7 +76,13 @@ def token_required(f):
         token = None
         
         if 'Authorization' in request.headers:
-            token = request.headers['Authorization'].split(" ")[1]
+            auth_header = request.headers['Authorization']
+            parts = auth_header.split()
+            
+            if len(parts) == 2 and parts[0].lower() == 'bearer':
+                token = parts[1]
+            else:
+                return jsonify({'message': 'Authorization header must be Bearer token!'}), 401
         
         if not token:
             return jsonify({'message': 'Token is missing!'}), 401
@@ -59,13 +101,16 @@ def token_required(f):
 # Rotas de autenticação
 @app.route('/')
 def hello():
+    """
+    Endpoint de status da API
+    ---
+    responses:
+      200:
+        description: Exibe mensagem de boas-vindas e data/hora do servidor
+    """
     try:
-        # Recupera a data e hora atual do banco
         data_hora_db = db.session.execute(text("SELECT CURRENT_TIMESTAMP")).scalar()
-             
-        # Ajusta para GMT-3 (caso o banco esteja usando UTC)
         data_hora_ajustada = data_hora_db - timedelta(hours=3)
-
         return jsonify({
             "mensagem": "Bem-vindo ao Backend do Sistema embryotech",
             "data_hora": data_hora_ajustada.strftime("%Y-%m-%d %H:%M:%S"),
@@ -73,10 +118,41 @@ def hello():
             "fuso_horario": "GMT-3"
         })
     except Exception as e:
-        return jsonify({"erro": f"Não foi possível recuperar a hora do banco: {str(e)}"}), 500
+        return jsonify({"erro": f"Erro ao recuperar hora: {str(e)}"}), 500
 
 @app.route('/register', methods=['POST'])
 def register():
+    """
+    Registrar novo usuário
+    ---
+    tags:
+      - Autenticação
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          id: UserRegistration
+          required:
+            - username
+            - password
+            - email
+          properties:
+            username:
+              type: string
+              example: "usuario1"
+            password:
+              type: string
+              example: "senhasegura123"
+            email:
+              type: string
+              example: "usuario@email.com"
+    responses:
+      201:
+        description: Usuário registrado com sucesso
+      400:
+        description: Campos obrigatórios faltando ou usuário/email já existente
+    """
     data = request.get_json()
     
     if not data or not data.get('username') or not data.get('password') or not data.get('email'):
@@ -101,6 +177,40 @@ def register():
 
 @app.route('/login', methods=['POST'])
 def login():
+    """
+    Login de usuário
+    ---
+    tags:
+      - Autenticação
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          id: UserLogin
+          required:
+            - username
+            - password
+          properties:
+            username:
+              type: string
+              example: "usuario1"
+            password:
+              type: string
+              example: "senhasegura123"
+    responses:
+      200:
+        description: Login bem-sucedido
+        schema:
+          properties:
+            token:
+              type: string
+              example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+      400:
+        description: Campos obrigatórios faltando
+      401:
+        description: Credenciais inválidas
+    """
     data = request.get_json()
     
     if not data or not data.get('username') or not data.get('password'):
@@ -119,6 +229,39 @@ def login():
 @app.route('/items', methods=['GET'])
 @token_required
 def get_all_items(current_user):
+    """
+    Listar todos os itens do usuário
+    ---
+    tags:
+      - Itens
+    security:
+      - Bearer: []
+    responses:
+      200:
+        description: Lista de itens
+        schema:
+          type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/definitions/Item'
+      401:
+        description: Token inválido ou faltando
+    definitions:
+      Item:
+        type: object
+        properties:
+          id:
+            type: integer
+            example: 1
+          name:
+            type: string
+            example: "Item exemplo"
+          description:
+            type: string
+            example: "Descrição do item"
+    """
     items = Item.query.filter_by(created_by=current_user.id).all()
     
     output = []
@@ -135,6 +278,45 @@ def get_all_items(current_user):
 @app.route('/items/<int:item_id>', methods=['GET'])
 @token_required
 def get_one_item(current_user, item_id):
+    """
+    Obter detalhes de um item específico
+    ---
+    tags:
+      - Itens
+    security:
+      - Bearer: []
+    parameters:
+      - name: item_id
+        in: path
+        type: integer
+        required: true
+        description: ID do item a ser recuperado
+        example: 1
+    responses:
+      200:
+        description: Detalhes do item
+        schema:
+          type: object
+          properties:
+            item:
+              $ref: '#/definitions/Item'
+      401:
+        description: Token inválido ou faltando
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "Token is missing!"
+      404:
+        description: Item não encontrado
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "Item not found!"
+    """
     item = Item.query.filter_by(id=item_id, created_by=current_user.id).first()
     
     if not item:
@@ -151,6 +333,36 @@ def get_one_item(current_user, item_id):
 @app.route('/items', methods=['POST'])
 @token_required
 def create_item(current_user):
+    """
+    Criar novo item
+    ---
+    tags:
+      - Itens
+    security:
+      - Bearer: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          id: NewItem
+          required:
+            - name
+          properties:
+            name:
+              type: string
+              example: "Novo item"
+            description:
+              type: string
+              example: "Descrição opcional"
+    responses:
+      201:
+        description: Item criado com sucesso
+      400:
+        description: Nome do item faltando
+      401:
+        description: Token inválido ou faltando
+    """
     data = request.get_json()
     
     if not data or not data.get('name'):
@@ -170,6 +382,68 @@ def create_item(current_user):
 @app.route('/items/<int:item_id>', methods=['PUT'])
 @token_required
 def update_item(current_user, item_id):
+    """
+    Atualizar um item específico
+    ---
+    tags:
+      - Itens
+    security:
+      - Bearer: []
+    parameters:
+      - name: item_id
+        in: path
+        type: integer
+        required: true
+        description: ID do item a ser atualizado
+        example: 1
+      - in: body
+        name: body
+        required: true
+        schema:
+          id: ItemUpdate
+          properties:
+            name:
+              type: string
+              example: "Novo nome do item"
+              description: Novo nome para o item (opcional)
+            description:
+              type: string
+              example: "Nova descrição detalhada"
+              description: Nova descrição para o item (opcional)
+    responses:
+      200:
+        description: Item atualizado com sucesso
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "Item updated successfully!"
+      400:
+        description: Nenhum campo válido fornecido para atualização
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "No valid fields provided for update!"
+      401:
+        description: Token inválido ou faltando
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "Token is missing!"
+      404:
+        description: Item não encontrado
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "Item not found!"
+    """
     item = Item.query.filter_by(id=item_id, created_by=current_user.id).first()
     
     if not item:
@@ -189,6 +463,46 @@ def update_item(current_user, item_id):
 @app.route('/items/<int:item_id>', methods=['DELETE'])
 @token_required
 def delete_item(current_user, item_id):
+    """
+    Deletar um item específico
+    ---
+    tags:
+      - Itens
+    security:
+      - Bearer: []
+    parameters:
+      - name: item_id
+        in: path
+        type: integer
+        required: true
+        description: ID do item a ser deletado
+        example: 1
+    responses:
+      200:
+        description: Item deletado com sucesso
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "Item deleted successfully!"
+      401:
+        description: Token inválido ou faltando
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "Token is missing!"
+      404:
+        description: Item não encontrado
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "Item not found!"
+    """
     item = Item.query.filter_by(id=item_id, created_by=current_user.id).first()
     
     if not item:
@@ -202,6 +516,46 @@ def delete_item(current_user, item_id):
 @app.route('/leituras', methods=['POST'])
 @token_required
 def criar_leitura(current_user):
+    """
+    Criar nova leitura de embrião
+    ---
+    tags:
+      - Leituras
+    security:
+      - Bearer: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          id: NewLeitura
+          properties:
+            umidade:
+              type: float
+              example: 65.5
+            temperatura:
+              type: float
+              example: 36.7
+            pressao:
+              type: float
+              example: 1.2
+            lote:
+              type: string
+              example: "Lote A"
+            data_inicial:
+              type: string
+              format: date-time
+              example: "2023-05-20T10:30:00"
+            data_final:
+              type: string
+              format: date-time
+              example: "2023-05-21T10:30:00"
+    responses:
+      201:
+        description: Leitura criada com sucesso
+      401:
+        description: Token inválido ou faltando
+    """
     data = request.get_json()
     nova = Leitura(
         umidade=data.get('umidade'),
@@ -218,6 +572,50 @@ def criar_leitura(current_user):
 @app.route('/leituras', methods=['GET'])
 @token_required
 def listar_leituras(current_user):
+    """
+    Listar todas as leituras
+    ---
+    tags:
+      - Leituras
+    security:
+      - Bearer: []
+    responses:
+      200:
+        description: Lista de leituras
+        schema:
+          type: array
+          items:
+            $ref: '#/definitions/Leitura'
+      401:
+        description: Token inválido ou faltando
+    definitions:
+      Leitura:
+        type: object
+        properties:
+          id:
+            type: integer
+            example: 1
+          umidade:
+            type: float
+            example: 65.5
+          temperatura:
+            type: float
+            example: 36.7
+          pressao:
+            type: float
+            example: 1.2
+          lote:
+            type: string
+            example: "Lote A"
+          data_inicial:
+            type: string
+            format: date-time
+            example: "2023-05-20T10:30:00"
+          data_final:
+            type: string
+            format: date-time
+            example: "2023-05-21T10:30:00"
+    """     
     leituras = Leitura.query.all()
     retorno = []
     for l in leituras:
@@ -235,6 +633,34 @@ def listar_leituras(current_user):
 @app.route('/leituras/<int:leitura_id>', methods=['PUT'])
 @token_required
 def atualizar_leitura(current_user, leitura_id):
+    """
+    Atualizar uma leitura existente
+    ---
+    tags:
+      - Leituras
+    security:
+      - Bearer: []
+    parameters:
+      - name: leitura_id
+        in: path
+        type: integer
+        required: true
+        description: ID da leitura a ser atualizada
+        example: 1
+      - in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/Leitura'
+    responses:
+      200:
+        description: Leitura atualizada com sucesso
+      401:
+        description: Token inválido ou faltando
+      404:
+        description: Leitura não encontrada
+    """
+    
     leitura = Leitura.query.get(leitura_id)
     if not leitura:
         return jsonify({'message': 'Leitura não encontrada'}), 404
@@ -253,6 +679,28 @@ def atualizar_leitura(current_user, leitura_id):
 @app.route('/leituras/<int:leitura_id>', methods=['DELETE'])
 @token_required
 def deletar_leitura(current_user, leitura_id):
+    """
+    Deletar uma leitura existente
+    ---
+    tags:
+      - Leituras
+    security:
+      - Bearer: []
+    parameters:
+      - name: leitura_id
+        in: path
+        type: integer
+        required: true
+        description: ID da leitura a ser deletada
+        example: 1
+    responses:
+      200:
+        description: Leitura deletada com sucesso
+      401:
+        description: Token inválido ou faltando
+      404:
+        description: Leitura não encontrada
+    """
     leitura = Leitura.query.get(leitura_id)
     if not leitura:
         return jsonify({'message': 'Leitura não encontrada'}), 404
@@ -262,4 +710,4 @@ def deletar_leitura(current_user, leitura_id):
     return jsonify({'message': 'Leitura deletada com sucesso'}), 200
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=PORT)  # Mude para a porta desejada
+    app.run(debug=app.config['DEBUG'])
