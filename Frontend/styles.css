@@ -46,6 +46,10 @@ body {
 }
 
 .login-container h2 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
   max-width: 400px;
   margin: 10vh auto; /* Alterado de px fixo para altura da viewport */
   padding: 40px 30px; /* Mais padding */
@@ -53,6 +57,25 @@ body {
   border-radius: 12px; /* Bordas levemente mais arredondadas */
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); /* Sombra mais suave */
   text-align: center;
+}
+
+/* Estilo para o ícone */
+.logo-icon {
+  width: 50; /* Ajuste conforme necessário */
+  height: 50px; /* Mantém a proporção */
+  object-fit: contain;
+}
+
+/* Ajuste para o texto em telas pequenas */
+@media (max-width: 480px) {
+  .login-container h1 {
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .logo-icon {
+    margin-bottom: 5px;
+  }
 }
 
 .form-group {
