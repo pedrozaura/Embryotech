@@ -10,6 +10,10 @@ from flask_cors import CORS
 from extensions import db, migrate
 from flasgger import Swagger
 import secrets
+import os
+
+# Configuração da porta
+PORT = int(os.environ.get('PORT', 5001))  # Padrão 5001, mas pode ser sobrescrito
 
 app = Flask(__name__)
 CORS(app)
@@ -49,6 +53,10 @@ def token_required(f):
     return decorated
 
 # Rotas de autenticação
+@app.route('/')
+def hello():
+    return "API rodando na porta {}".format(PORT)
+
 @app.route('/register', methods=['POST'])
 def register():
     data = request.get_json()
@@ -174,4 +182,4 @@ def delete_item(current_user, item_id):
     return jsonify({'message': 'Item deleted successfully!'}), 200
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5001)  # Mude para a porta desejada
+    app.run(host='0.0.0.0', port=PORT)  # Mude para a porta desejada
