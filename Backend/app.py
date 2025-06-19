@@ -112,7 +112,7 @@ def hello():
         data_hora_db = db.session.execute(text("SELECT CURRENT_TIMESTAMP")).scalar()
         data_hora_ajustada = data_hora_db - timedelta(hours=3)
         return jsonify({
-            "mensagem": "Bem-vindo ao Backend do Sistema embryotech",
+            "mensagem": "Bem-vindo ao Backend do Sistema Embryotech",
             "data_hora": data_hora_ajustada.strftime("%Y-%m-%d %H:%M:%S"),
             "PORTA": PORT,
             "fuso_horario": "GMT-3"
@@ -517,7 +517,7 @@ def delete_item(current_user, item_id):
 @token_required
 def criar_leitura(current_user):
     """
-    Criar nova leitura de embrião
+    Criar novas leituras de embrião (suporte a múltiplas leituras)
     ---
     tags:
       - Leituras
@@ -528,46 +528,50 @@ def criar_leitura(current_user):
         name: body
         required: true
         schema:
-          id: NewLeitura
-          properties:
-            umidade:
-              type: float
-              example: 65.5
-            temperatura:
-              type: float
-              example: 36.7
-            pressao:
-              type: float
-              example: 1.2
-            lote:
-              type: string
-              example: "Lote A"
-            data_inicial:
-              type: string
-              format: date-time
-              example: "2023-05-20T10:30:00"
-            data_final:
-              type: string
-              format: date-time
-              example: "2023-05-21T10:30:00"
+          type: array
+          items:
+            $ref: '#/definitions/Leitura'
     responses:
       201:
-        description: Leitura criada com sucesso
+        description: Leituras criadas com sucesso
+      400:
+        description: Dados inválidos
       401:
         description: Token inválido ou faltando
     """
-    data = request.get_json()
-    nova = Leitura(
-        umidade=data.get('umidade'),
-        temperatura=data.get('temperatura'),
-        pressao=data.get('pressao'),
-        lote=data.get('lote'),
-        data_inicial=data.get('data_inicial'),
-        data_final=data.get('data_final')
-    )
-    db.session.add(nova)
-    db.session.commit()
-    return jsonify({'message': 'Leitura criada com sucesso'}), 201
+    try:
+        if not request.is_json:
+            return jsonify({'message': 'O corpo da requisição deve ser JSON'}), 400
+            
+        data = request.get_json()
+        
+        # Se não for uma lista, converte para lista de um item
+        if not isinstance(data, list):
+            data = [data]
+        
+        leituras = []
+        for item in data:
+            nova = Leitura(
+                umidade=item.get('umidade'),
+                temperatura=item.get('temperatura'),
+                pressao=item.get('pressao'),
+                lote=item.get('lote'),
+                data_inicial=item.get('data_inicial'),
+                data_final=item.get('data_final')
+            )
+            leituras.append(nova)
+        
+        db.session.add_all(leituras)
+        db.session.commit()
+        
+        return jsonify({
+            'message': f'{len(leituras)} leituras criadas com sucesso',
+            'quantidade': len(leituras)
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'message': f'Erro ao processar os dados: {str(e)}'}), 400
 
 @app.route('/leituras', methods=['GET'])
 @token_required
