@@ -12,6 +12,9 @@ from flasgger import Swagger
 import secrets
 import os
 
+from sqlalchemy.sql import text
+from datetime import timedelta
+
 # Configuração da porta
 PORT = int(os.environ.get('PORT', 5001))  # Padrão 5001, mas pode ser sobrescrito
 
@@ -24,7 +27,8 @@ migrate.init_app(app, db)
 swagger = Swagger(app)
 
 # Importar models após inicializar db para evitar import circular
-from models import User, Item
+from models import User, Item, Leitura
+
 
 print("SECRET_KEY:", secrets.token_urlsafe(32))
 print("JWT_SECRET_KEY:", secrets.token_hex(32))
@@ -55,7 +59,21 @@ def token_required(f):
 # Rotas de autenticação
 @app.route('/')
 def hello():
-    return "API rodando na porta {}".format(PORT)
+    try:
+        # Recupera a data e hora atual do banco
+        data_hora_db = db.session.execute(text("SELECT CURRENT_TIMESTAMP")).scalar()
+             
+        # Ajusta para GMT-3 (caso o banco esteja usando UTC)
+        data_hora_ajustada = data_hora_db - timedelta(hours=3)
+
+        return jsonify({
+            "mensagem": "Bem-vindo ao Backend do Sistema embryotech",
+            "data_hora": data_hora_ajustada.strftime("%Y-%m-%d %H:%M:%S"),
+            "PORTA": PORT,
+            "fuso_horario": "GMT-3"
+        })
+    except Exception as e:
+        return jsonify({"erro": f"Não foi possível recuperar a hora do banco: {str(e)}"}), 500
 
 @app.route('/register', methods=['POST'])
 def register():
@@ -180,6 +198,68 @@ def delete_item(current_user, item_id):
     db.session.commit()
     
     return jsonify({'message': 'Item deleted successfully!'}), 200
+
+@app.route('/leituras', methods=['POST'])
+@token_required
+def criar_leitura(current_user):
+    data = request.get_json()
+    nova = Leitura(
+        umidade=data.get('umidade'),
+        temperatura=data.get('temperatura'),
+        pressao=data.get('pressao'),
+        lote=data.get('lote'),
+        data_inicial=data.get('data_inicial'),
+        data_final=data.get('data_final')
+    )
+    db.session.add(nova)
+    db.session.commit()
+    return jsonify({'message': 'Leitura criada com sucesso'}), 201
+
+@app.route('/leituras', methods=['GET'])
+@token_required
+def listar_leituras(current_user):
+    leituras = Leitura.query.all()
+    retorno = []
+    for l in leituras:
+        retorno.append({
+            'id': l.id,
+            'umidade': l.umidade,
+            'temperatura': l.temperatura,
+            'pressao': l.pressao,
+            'lote': l.lote,
+            'data_inicial': l.data_inicial,
+            'data_final': l.data_final
+        })
+    return jsonify(retorno), 200
+
+@app.route('/leituras/<int:leitura_id>', methods=['PUT'])
+@token_required
+def atualizar_leitura(current_user, leitura_id):
+    leitura = Leitura.query.get(leitura_id)
+    if not leitura:
+        return jsonify({'message': 'Leitura não encontrada'}), 404
+
+    data = request.get_json()
+    leitura.umidade = data.get('umidade', leitura.umidade)
+    leitura.temperatura = data.get('temperatura', leitura.temperatura)
+    leitura.pressao = data.get('pressao', leitura.pressao)
+    leitura.lote = data.get('lote', leitura.lote)
+    leitura.data_inicial = data.get('data_inicial', leitura.data_inicial)
+    leitura.data_final = data.get('data_final', leitura.data_final)
+
+    db.session.commit()
+    return jsonify({'message': 'Leitura atualizada com sucesso'}), 200
+
+@app.route('/leituras/<int:leitura_id>', methods=['DELETE'])
+@token_required
+def deletar_leitura(current_user, leitura_id):
+    leitura = Leitura.query.get(leitura_id)
+    if not leitura:
+        return jsonify({'message': 'Leitura não encontrada'}), 404
+
+    db.session.delete(leitura)
+    db.session.commit()
+    return jsonify({'message': 'Leitura deletada com sucesso'}), 200
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=PORT)  # Mude para a porta desejada

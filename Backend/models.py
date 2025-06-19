@@ -54,3 +54,14 @@ def generate_auth_token(self, expires_in=3600):
         current_app.config['JWT_SECRET_KEY'],  # Acessa a chave configurada
         algorithm='HS256'
     )
+
+class Leitura(db.Model):
+    __tablename__ = 'leituras'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    umidade = db.Column(db.Float, nullable=True)
+    temperatura = db.Column(db.Float, nullable=True)
+    pressao = db.Column(db.Float, nullable=True)
+    lote = db.Column(db.String(100), nullable=True)
+    data_inicial = db.Column(db.DateTime, nullable=True)
+    data_final = db.Column(db.DateTime, nullable=True)
