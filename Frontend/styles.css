@@ -133,20 +133,24 @@ header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  position: relative; /* Adicionado para melhor controle */
 }
 
 header h1 {
   margin: 0;
+  padding: 0;
 }
 
 #logoutBtn {
   width: auto;
   padding: 8px 15px;
-  background-color: #e74c3c;
+  background-color: #25691b;
+  margin: 0; /* Remove qualquer margem */
+  position: static; /* Remove posicionamento absoluto se existir */
 }
 
 #logoutBtn:hover {
-  background-color: #c0392b;
+  background-color: #64d354;
 }
 
 main {
