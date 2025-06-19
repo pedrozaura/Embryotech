@@ -174,4 +174,4 @@ def delete_item(current_user, item_id):
     return jsonify({'message': 'Item deleted successfully!'}), 200
 
 if __name__ == '__main__':
-    app.run(debug=app.config['DEBUG'])
+    app.run(host='0.0.0.0', port=5001)  # Mude para a porta desejada
