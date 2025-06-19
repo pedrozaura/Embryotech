@@ -307,7 +307,7 @@ def get_one_item(current_user, item_id):
           properties:
             message:
               type: string
-              example: "Token is missing!"
+              example: "Token é invalido!"
       404:
         description: Item não encontrado
         schema:
@@ -315,7 +315,7 @@ def get_one_item(current_user, item_id):
           properties:
             message:
               type: string
-              example: "Item not found!"
+              example: "Item não encontrado!"
     """
     item = Item.query.filter_by(id=item_id, created_by=current_user.id).first()
     
@@ -418,7 +418,7 @@ def update_item(current_user, item_id):
           properties:
             message:
               type: string
-              example: "Item updated successfully!"
+              example: "Item atualizado com sucesso!"
       400:
         description: Nenhum campo válido fornecido para atualização
         schema:
@@ -426,7 +426,7 @@ def update_item(current_user, item_id):
           properties:
             message:
               type: string
-              example: "No valid fields provided for update!"
+              example: "Não existem campos validos para atualizar!"
       401:
         description: Token inválido ou faltando
         schema:
@@ -434,7 +434,7 @@ def update_item(current_user, item_id):
           properties:
             message:
               type: string
-              example: "Token is missing!"
+              example: "Token é invalido!"
       404:
         description: Item não encontrado
         schema:
@@ -442,7 +442,7 @@ def update_item(current_user, item_id):
           properties:
             message:
               type: string
-              example: "Item not found!"
+              example: "Item não encontrado!"
     """
     item = Item.query.filter_by(id=item_id, created_by=current_user.id).first()
     
@@ -485,7 +485,7 @@ def delete_item(current_user, item_id):
           properties:
             message:
               type: string
-              example: "Item deleted successfully!"
+              example: "Item Deletado com Sucesso!"
       401:
         description: Token inválido ou faltando
         schema:
@@ -493,7 +493,7 @@ def delete_item(current_user, item_id):
           properties:
             message:
               type: string
-              example: "Token is missing!"
+              example: "Token é invalido!"
       404:
         description: Item não encontrado
         schema:
@@ -501,7 +501,7 @@ def delete_item(current_user, item_id):
           properties:
             message:
               type: string
-              example: "Item not found!"
+              example: "Item não encontrado!"
     """
     item = Item.query.filter_by(id=item_id, created_by=current_user.id).first()
     
