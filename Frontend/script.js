@@ -94,20 +94,24 @@ function setupDashboardPage() {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (!response.ok) {
-        if (response.status === 401) handleLogout();
-        throw new Error("Erro ao carregar leituras");
-      }
+      if (!response.ok) throw new Error("Erro ao carregar leituras");
 
-      const readings = await response.json();
+      let readings = await response.json();
+
+      // Ordena as leituras por data (da mais recente para a mais antiga)
+      readings.sort(
+        (a, b) => new Date(b.data_inicial) - new Date(a.data_inicial)
+      );
 
       if (readings.length > 0) {
+        // Pega a primeira leitura (que agora será a mais recente)
         updateLastReading(readings[0]);
-        updateReadingsList(readings);
-        updateCharts(readings);
-        loteLabel.textContent = `Lote: ${readings[0].lote || "N/A"}`;
 
-        // Atualiza o contador de leituras (ADICIONE ESTA LINHA)
+        // Para o gráfico, ordena de forma crescente (mais antiga para mais recente)
+        const readingsForCharts = [...readings].reverse();
+        updateReadingsList(readings);
+        updateCharts(readingsForCharts);
+        loteLabel.textContent = `Lote: ${readings[0].lote || "N/A"}`;
         updateReadingsCount(readings.length);
       }
     } catch (error) {
@@ -215,12 +219,42 @@ function setupDashboardPage() {
     });
   }
 }
-
+/*
 function formatDate(dateString, short = false) {
   if (!dateString) return "N/A";
   const date = new Date(dateString);
   if (short) return date.toLocaleTimeString();
   return date.toLocaleString();
+}
+*/
+
+function formatDate(dateString, short = false) {
+  if (!dateString) return "N/A";
+
+  const date = new Date(dateString);
+  const options = {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false, // Formato 24h
+  };
+
+  if (short) {
+    // Para os gráficos: dia/mês hora:minuto
+    return `${date.toLocaleDateString("pt-BR")} ${date.toLocaleTimeString(
+      "pt-BR",
+      {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      }
+    )}`;
+  }
+
+  // Data completa: dia/mês/ano hora:minuto:segundo
+  return date.toLocaleString("pt-BR", options);
 }
 
 // Configura a página de login
