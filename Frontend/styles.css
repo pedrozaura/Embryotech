@@ -320,12 +320,14 @@ section {
 .custom-modal-content {
   background-color: white;
   border-radius: 8px;
-  width: 80%;
+  width: 90%;
   max-width: 800px;
   max-height: 80vh;
   display: flex;
   flex-direction: column;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  margin: 0 auto; /* Centraliza o modal na tela */
+  overflow: hidden; /* Impede que conteúdo vaze */
 }
 
 .custom-modal-header {
@@ -349,21 +351,28 @@ section {
   padding: 15px 20px;
   border-top: 1px solid #eee;
   display: flex;
-  justify-content: space-between; /* Alterado para space-between */
-  align-items: center; /* Adicionado para alinhamento vertical */
+  justify-content: flex-end; /* Alinha tudo à direita */
+  align-items: center;
+  gap: 20px; /* Espaço entre os elementos */
 }
 
 .custom-close-btn {
   background-color: #25691b;
   color: white;
   border: none;
-  padding: 8px 20px;
+  padding: 8px 20px; /* Aumente o padding direito se necessário */
   border-radius: 4px;
   cursor: pointer;
   font-size: 1rem;
   transition: background-color 0.2s;
-  /* Remova o min-width se existir */
-  margin-left: auto; /* Adicionado para empurrar para a direita */
+  min-width: 100px; /* Largura mínima garantida */
+  box-sizing: border-box; /* Garante que padding não ultrapasse a largura */
+}
+
+.modal-footer-left {
+  color: #666;
+  font-size: 0.9rem;
+  margin-right: auto; /* Mantém o contador à esquerda */
 }
 
 /* Se quiser o contador e o botão colados à direita */
@@ -376,11 +385,6 @@ section {
 
 .custom-close-btn:hover {
   background-color: #1d5615;
-}
-
-.modal-footer-left {
-  color: #666;
-  font-size: 0.9rem;
 }
 
 .modal-footer-left strong {
