@@ -534,3 +534,26 @@ header #logoutBtn {
 .custom-modal-header .custom-close-btn {
   margin-left: auto;
 }
+
+.success-message {
+  color: #25691b;
+  background-color: #e8f5e9;
+  padding: 10px;
+  border-radius: 4px;
+  border-left: 4px solid #25691b;
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10000;
+  animation: fadeIn 0.3s;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

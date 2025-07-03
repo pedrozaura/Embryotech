@@ -14,19 +14,39 @@ if (urlParams.has("logout")) {
   }
 }
 
-function showError(message, isLoginError = false) {
+function showMessage(message, type = "error", isLoginError = false) {
   if (!errorMessage) errorMessage = document.getElementById("errorMessage");
   if (!errorMessage) return;
 
   errorMessage.textContent = message;
   errorMessage.style.display = "block";
-  errorMessage.className = isLoginError
-    ? "error-message login-error"
-    : "error-message";
+
+  // Remove todas as classes existentes
+  errorMessage.className = "";
+
+  // Adiciona as classes apropriadas
+  if (type === "error") {
+    errorMessage.classList.add("error-message");
+    if (isLoginError) {
+      errorMessage.classList.add("login-error");
+    }
+  } else {
+    errorMessage.classList.add("success-message");
+  }
 
   setTimeout(() => {
     errorMessage.style.display = "none";
   }, 5000);
+}
+
+// Mantenha a função showError para compatibilidade
+function showError(message, isLoginError = false) {
+  showMessage(message, "error", isLoginError);
+}
+
+// Mantenha a função showError para compatibilidade
+function showError(message, isLoginError = false) {
+  showMessage(message, "error", isLoginError);
 }
 
 async function handleLogout() {
@@ -273,8 +293,22 @@ function setupParametroModal() {
     const data = Object.fromEntries(new FormData(parametroForm).entries());
 
     // Validação dos campos obrigatórios
-    if (!data.empresa || !data.lote || !data.temp_ideal || !data.umid_ideal) {
-      showError("Empresa, lote, temperatura e umidade são obrigatórios", true);
+    const missingFields = [];
+    if (!data.empresa) missingFields.push("Empresa");
+    if (!data.lote) missingFields.push("Lote");
+    if (!data.temp_ideal) missingFields.push("Temperatura Ideal");
+    if (!data.umid_ideal) missingFields.push("Umidade Ideal");
+    if (!data.pressao_ideal) missingFields.push("Pressão Ideal");
+    if (!data.lumens) missingFields.push("Lumens");
+    if (!data.id_sala) missingFields.push("ID da Sala");
+    if (!data.estagio_ovo) missingFields.push("Estágio do Ovo");
+
+    if (missingFields.length > 0) {
+      showMessage(
+        `Os seguintes campos são obrigatórios: ${missingFields.join(", ")}`,
+        "error",
+        true
+      );
       return;
     }
 
@@ -306,7 +340,7 @@ function setupParametroModal() {
       });
 
       if (res.ok) {
-        showError("Parâmetros salvos com sucesso!", false);
+        showMessage("Parâmetros salvos com sucesso!", "success");
         setTimeout(() => {
           parametroModal.style.display = "none";
           filtersSection.style.display = "block";
