@@ -23,6 +23,13 @@ PORT = int(os.environ.get('PORT', 5001))  # Padrão 5001, mas pode ser sobrescri
 
 app = Flask(__name__)
 CORS(app)
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    return response
+
 app.config.from_object(Config)
 
 db.init_app(app)
@@ -943,6 +950,111 @@ def get_parametros(current_user):
     parametros = Parametro.query.filter_by(empresa=empresa, lote=lote).all()
 
     return jsonify([p.to_dict() for p in parametros]), 200
+
+@app.route('/parametros/<int:id>', methods=['PUT'])
+@token_required
+def atualizar_parametro(current_user, id):
+    """
+    Atualizar parâmetros existentes
+    ---
+    tags:
+      - Parâmetros
+    security:
+      - Bearer: []
+    parameters:
+      - name: id
+        in: path
+        type: integer
+        required: true
+        description: ID do parâmetro a ser atualizado
+      - in: body
+        name: body
+        required: true
+        schema:
+          id: ParametroUpdate
+          properties:
+            empresa:
+              type: string
+              example: "Embrapa"
+            lote:
+              type: string
+              example: "LOTE-2023-001"
+            temp_ideal:
+              type: number
+              format: float
+              example: 37.5
+            umid_ideal:
+              type: number
+              format: float
+              example: 65.0
+            pressao_ideal:
+              type: number
+              format: float
+              example: 1013.25
+            lumens:
+              type: number
+              format: float
+              example: 400.0
+            id_sala:
+              type: integer
+              example: 3
+            estagio_ovo:
+              type: string
+              example: "Desenvolvimento"
+    responses:
+      200:
+        description: Parâmetro atualizado com sucesso
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "Parâmetro atualizado com sucesso!"
+            parametro:
+              $ref: '#/definitions/Parametro'
+      400:
+        description: Requisição malformada
+      401:
+        description: Token inválido ou ausente
+      403:
+        description: Acesso não autorizado para usuário não-admin
+      404:
+        description: Parâmetro não encontrado
+    """
+    if not current_user.is_admin:
+        return jsonify({'message': 'Acesso negado!'}), 403
+
+    parametro = Parametro.query.get(id)
+    if not parametro:
+        return jsonify({'message': 'Parâmetro não encontrado'}), 404
+
+    data = request.get_json()
+    try:
+        if 'empresa' in data:
+            parametro.empresa = data['empresa']
+        if 'lote' in data:
+            parametro.lote = data['lote']
+        if 'temp_ideal' in data:
+            parametro.temp_ideal = data['temp_ideal']
+        if 'umid_ideal' in data:
+            parametro.umid_ideal = data['umid_ideal']
+        if 'pressao_ideal' in data:
+            parametro.pressao_ideal = data.get('pressao_ideal')
+        if 'lumens' in data:
+            parametro.lumens = data.get('lumens')
+        if 'id_sala' in data:
+            parametro.id_sala = data.get('id_sala')
+        if 'estagio_ovo' in data:
+            parametro.estagio_ovo = data.get('estagio_ovo')
+
+        db.session.commit()
+        return jsonify({
+            'message': 'Parâmetro atualizado com sucesso!',
+            'parametro': parametro.to_dict()
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'message': f'Erro ao atualizar parâmetro: {str(e)}'}), 400
 
 
 
