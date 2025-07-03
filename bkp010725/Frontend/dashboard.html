@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Embryotech - Dashboard</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+  <body>
+    <header>
+      <div class="header-content">
+        <img
+          src="images/logo-icon.png"
+          alt="Logo Embryotech"
+          class="header-logo"
+        />
+        <h1>Dashboard Embryotech</h1>
+      </div>
+      <button id="logoutBtn">Sair</button>
+    </header>
+
+    <main>
+      <section class="last-reading">
+        <h2>Última Leitura</h2>
+        <div id="lastReadingContainer" class="reading-card">
+          <p>Carregando última leitura...</p>
+        </div>
+      </section>
+
+      <!-- Botões: Histórico e Parâmetros -->
+      <div class="button-group">
+        <button id="showHistoryBtn">Histórico</button>
+        <button id="btnParametros">Gerenciar Parâmetros</button>
+      </div>
+
+      <section class="charts-section">
+        <h2>Análise Gráfica</h2>
+        <div class="chart-container">
+          <h3 id="loteLabel">Lote: Carregando...</h3>
+          <div class="chart-row">
+            <div class="chart-wrapper">
+              <h4>Temperatura (°C)</h4>
+              <canvas id="tempChart"></canvas>
+            </div>
+            <div class="chart-wrapper">
+              <h4>Umidade (%)</h4>
+              <canvas id="umidChart"></canvas>
+            </div>
+          </div>
+          <div class="chart-row">
+            <div class="chart-wrapper">
+              <h4>Pressão (hPa)</h4>
+              <canvas id="pressChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Modal de Histórico -->
+    <div id="customModal" class="custom-modal">
+      <div class="custom-modal-content">
+        <div class="custom-modal-header">
+          <h3>Histórico de Leituras</h3>
+        </div>
+        <div class="custom-modal-body" id="readingsListContainer">
+          <p>Carregando histórico...</p>
+        </div>
+        <div class="custom-modal-footer">
+          <div id="readingsCount" class="modal-footer-left"></div>
+          <div class="align-right-group">
+            <button class="custom-close-btn">Fechar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de Parâmetros -->
+    <div id="parametroModal" class="custom-modal">
+      <div class="custom-modal-content">
+        <div class="custom-modal-header">
+          <h3>Cadastro de Parâmetros</h3>
+        </div>
+        <div class="custom-modal-body">
+          <form id="parametroForm">
+            <input
+              type="number"
+              step="any"
+              name="pressao_ideal"
+              placeholder="Pressão Ideal (hPa)"
+              required
+            />
+            <input
+              type="number"
+              step="any"
+              name="temp_ideal"
+              placeholder="Temperatura Ideal (°C)"
+              required
+            />
+            <input
+              type="number"
+              step="any"
+              name="umid_ideal"
+              placeholder="Umidade Ideal (%)"
+              required
+            />
+            <input
+              type="number"
+              step="any"
+              name="lumens"
+              placeholder="Lumens"
+            />
+            <input type="text" name="empresa" placeholder="Empresa" />
+            <input type="number" name="id_sala" placeholder="ID da Sala" />
+            <input
+              type="text"
+              name="estagio_ovo"
+              placeholder="Estágio do Ovo"
+            />
+            <button type="submit" class="custom-save-btn">Salvar</button>
+            <button type="button" class="custom-close-btn">Cancelar</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      document.getElementById("btnParametros").onclick = () => {
+        document.getElementById("parametroModal").style.display = "flex";
+      };
+      document
+        .querySelectorAll("#parametroModal .custom-close-btn")
+        .forEach((btn) => {
+          btn.onclick = () => {
+            document.getElementById("parametroModal").style.display = "none";
+          };
+        });
+    </script>
+    <script src="script.js"></script>
+  </body>
+</html>

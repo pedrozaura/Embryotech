@@ -60,27 +60,13 @@ class Leitura(db.Model):
     data_final = db.Column(db.DateTime, nullable=True)
 
 class Parametro(db.Model):
+    __tablename__ = 'parametros'
+
     id = db.Column(db.Integer, primary_key=True)
-    empresa = db.Column(db.String(100), nullable=False)
-    lote = db.Column(db.String(50), nullable=False)
+    pressao_ideal = db.Column(db.Float, nullable=False)
     temp_ideal = db.Column(db.Float, nullable=False)
     umid_ideal = db.Column(db.Float, nullable=False)
-    pressao_ideal = db.Column(db.Float)
-    lumens = db.Column(db.Float)
-    id_sala = db.Column(db.Integer)
-    estagio_ovo = db.Column(db.String(50))
-    data_criacao = db.Column(db.DateTime, default=datetime.utcnow)
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'empresa': self.empresa,
-            'lote': self.lote,
-            'temp_ideal': self.temp_ideal,
-            'umid_ideal': self.umid_ideal,
-            'pressao_ideal': self.pressao_ideal,
-            'lumens': self.lumens,
-            'id_sala': self.id_sala,
-            'estagio_ovo': self.estagio_ovo,
-            'data_criacao': self.data_criacao.isoformat()
-        }
+    lumens = db.Column(db.Float, nullable=True)
+    empresa = db.Column(db.String(120), nullable=True)
+    id_sala = db.Column(db.Integer, nullable=True)
+    estagio_ovo = db.Column(db.String(50), nullable=True)

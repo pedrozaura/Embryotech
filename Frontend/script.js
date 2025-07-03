@@ -1,10 +1,9 @@
-// Configuração da API
+// script.js completo com funcionalidade de parâmetros por empresa e lote
+
 const API_BASE_URL = "http://147.79.104.68:5001";
 
-// Elementos do DOM
 let loginForm, errorMessage, logoutBtn;
 
-// Verifica parâmetros de URL para mensagem de logout
 const urlParams = new URLSearchParams(window.location.search);
 if (urlParams.has("logout")) {
   const logoutMessage = document.getElementById("logoutMessage");
@@ -15,7 +14,6 @@ if (urlParams.has("logout")) {
   }
 }
 
-// Função para exibir mensagens de erro
 function showError(message, isLoginError = false) {
   if (!errorMessage) errorMessage = document.getElementById("errorMessage");
   if (!errorMessage) return;
@@ -31,7 +29,6 @@ function showError(message, isLoginError = false) {
   }, 5000);
 }
 
-// Função para fazer logout
 async function handleLogout() {
   const logoutBtn = document.getElementById("logoutBtn");
   if (logoutBtn) {
@@ -44,7 +41,287 @@ async function handleLogout() {
   window.location.href = "index.html?logout=success";
 }
 
-// Configura a página de dashboard
+function parseJwt(token) {
+  try {
+    return JSON.parse(atob(token.split(".")[1]));
+  } catch (e) {
+    return null;
+  }
+}
+
+async function carregarEmpresas() {
+  try {
+    const token = localStorage.getItem("embryotech_token");
+    const res = await fetch(`${API_BASE_URL}/empresas`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (res.ok) {
+      const empresas = await res.json();
+      const select = document.getElementById("empresaSelect");
+      select.innerHTML = '<option value="">Selecione uma empresa</option>';
+
+      empresas.forEach((empresa) => {
+        const option = document.createElement("option");
+        option.value = empresa;
+        option.textContent = empresa;
+        select.appendChild(option);
+      });
+    }
+  } catch (error) {
+    console.error("Erro ao carregar empresas:", error);
+    showError("Erro ao carregar lista de empresas");
+  }
+}
+
+async function carregarLotes(empresa) {
+  try {
+    const token = localStorage.getItem("embryotech_token");
+    const res = await fetch(
+      `${API_BASE_URL}/lotes?empresa=${encodeURIComponent(empresa)}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+
+    if (res.ok) {
+      const lotes = await res.json();
+      const select = document.getElementById("loteSelect");
+      select.innerHTML = '<option value="">Selecione um lote</option>';
+      select.disabled = false;
+
+      lotes.forEach((lote) => {
+        const option = document.createElement("option");
+        option.value = lote;
+        option.textContent = lote;
+        select.appendChild(option);
+      });
+
+      document.getElementById("btnBuscarParametros").disabled =
+        lotes.length === 0;
+    }
+  } catch (error) {
+    console.error("Erro ao carregar lotes:", error);
+    showError("Erro ao carregar lista de lotes");
+  }
+}
+
+async function buscarParametros(empresa, lote) {
+  try {
+    const token = localStorage.getItem("embryotech_token");
+    const res = await fetch(
+      `${API_BASE_URL}/parametros?empresa=${encodeURIComponent(
+        empresa
+      )}&lote=${encodeURIComponent(lote)}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+
+    if (res.ok) {
+      const parametros = await res.json();
+      if (parametros.length > 0) {
+        return {
+          id: parametros[0].id || "",
+          empresa: parametros[0].empresa || "",
+          lote: parametros[0].lote || "",
+          temp_ideal: parametros[0].temp_ideal || "",
+          umid_ideal: parametros[0].umid_ideal || "",
+          pressao_ideal: parametros[0].pressao_ideal || "",
+          lumens: parametros[0].lumens || "",
+          id_sala: parametros[0].id_sala || "",
+          estagio_ovo: parametros[0].estagio_ovo || "",
+        };
+      }
+      return null;
+    }
+    return null;
+  } catch (error) {
+    console.error("Erro ao buscar parâmetros:", error);
+    showError("Erro ao buscar parâmetros");
+    return null;
+  }
+}
+
+function setupParametroModal() {
+  const parametroModal = document.getElementById("parametroModal");
+  const parametroForm = document.getElementById("parametroForm");
+  const filtersSection = document.querySelector(".parametro-filters");
+
+  // Fechar modal ao clicar fora
+  parametroModal.addEventListener("click", (e) => {
+    if (e.target === parametroModal) {
+      parametroModal.style.display = "none";
+    }
+  });
+
+  // Carregar empresas ao abrir o modal
+  document.getElementById("btnParametros").addEventListener("click", () => {
+    parametroModal.style.display = "flex";
+    carregarEmpresas();
+    filtersSection.style.display = "block";
+    parametroForm.style.display = "none";
+  });
+
+  // Carregar empresas ao abrir o modal
+  document.getElementById("btnParametros").addEventListener("click", () => {
+    parametroModal.style.display = "flex";
+    carregarEmpresas();
+    filtersSection.style.display = "block";
+    parametroForm.style.display = "none";
+  });
+
+  // Fechar modal
+  parametroModal
+    .querySelector(".custom-close-btn")
+    .addEventListener("click", () => {
+      parametroModal.style.display = "none";
+    });
+
+  // Seleção de empresa
+  document.getElementById("empresaSelect").addEventListener("change", (e) => {
+    if (e.target.value) {
+      carregarLotes(e.target.value);
+    } else {
+      document.getElementById("loteSelect").innerHTML =
+        '<option value="">Selecione um lote</option>';
+      document.getElementById("loteSelect").disabled = true;
+      document.getElementById("btnBuscarParametros").disabled = true;
+    }
+  });
+
+  document
+    .getElementById("btnFecharParametros")
+    .addEventListener("click", () => {
+      document.getElementById("parametroModal").style.display = "none";
+    });
+
+  // Botão Novo Parâmetro - AGORA CARREGA FORMULÁRIO VAZIO PRONTO PARA PREENCHER
+  document.getElementById("btnNovoParametro").addEventListener("click", () => {
+    filtersSection.style.display = "none";
+    parametroForm.style.display = "block";
+
+    // Resetar e preparar formulário para novo cadastro
+    parametroForm.reset();
+    parametroForm.querySelector("[name='id']").value = "";
+
+    // Preencher empresa e lote se já selecionados
+    const empresaSelecionada = document.getElementById("empresaSelect").value;
+    const loteSelecionado = document.getElementById("loteSelect").value;
+
+    if (empresaSelecionada) {
+      parametroForm.elements.empresa.value = empresaSelecionada;
+    }
+    if (loteSelecionado) {
+      parametroForm.elements.lote.value = loteSelecionado;
+    }
+
+    // Definir valores padrão para campos numéricos (opcional)
+    parametroForm.elements.temp_ideal.value = "";
+    parametroForm.elements.umid_ideal.value = "";
+    parametroForm.elements.pressao_ideal.value = "";
+    parametroForm.elements.lumens.value = "";
+    parametroForm.elements.id_sala.value = "";
+    parametroForm.elements.estagio_ovo.value = "";
+  });
+
+  // Botão Cancelar
+  document.getElementById("btnCancelar").addEventListener("click", () => {
+    filtersSection.style.display = "block";
+    parametroForm.style.display = "none";
+  });
+
+  // Buscar parâmetros existentes
+  document
+    .getElementById("btnBuscarParametros")
+    .addEventListener("click", async () => {
+      const empresa = document.getElementById("empresaSelect").value;
+      const lote = document.getElementById("loteSelect").value;
+
+      if (!empresa || !lote) {
+        showError(
+          "Por favor, selecione uma empresa e um lote para buscar os parâmetros.",
+          true
+        );
+        return;
+      }
+
+      const parametro = await buscarParametros(empresa, lote);
+      if (parametro) {
+        document.querySelector(".parametro-filters").style.display = "none";
+        document.getElementById("parametroForm").style.display = "block";
+
+        // Preencher todos os campos do formulário
+        const form = document.getElementById("parametroForm");
+        form.elements.id.value = parametro.id || "";
+        form.elements.empresa.value = parametro.empresa || "";
+        form.elements.lote.value = parametro.lote || "";
+        form.elements.temp_ideal.value = parametro.temp_ideal || "";
+        form.elements.umid_ideal.value = parametro.umid_ideal || "";
+        form.elements.pressao_ideal.value = parametro.pressao_ideal || "";
+        form.elements.lumens.value = parametro.lumens || "";
+        form.elements.id_sala.value = parametro.id_sala || "";
+        form.elements.estagio_ovo.value = parametro.estagio_ovo || "";
+      } else {
+        showError("Nenhum parâmetro encontrado para este lote", true);
+      }
+    });
+
+  // Envio do formulário
+  parametroForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(parametroForm).entries());
+
+    // Validação dos campos obrigatórios
+    if (!data.empresa || !data.lote || !data.temp_ideal || !data.umid_ideal) {
+      showError("Empresa, lote, temperatura e umidade são obrigatórios", true);
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem("embryotech_token");
+      const method = data.id ? "PUT" : "POST";
+      const url = data.id
+        ? `${API_BASE_URL}/parametros/${data.id}`
+        : `${API_BASE_URL}/parametros`;
+
+      const res = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          empresa: data.empresa,
+          lote: data.lote,
+          temp_ideal: parseFloat(data.temp_ideal),
+          umid_ideal: parseFloat(data.umid_ideal),
+          pressao_ideal: data.pressao_ideal
+            ? parseFloat(data.pressao_ideal)
+            : null,
+          lumens: data.lumens ? parseFloat(data.lumens) : null,
+          id_sala: data.id_sala ? parseInt(data.id_sala) : null,
+          estagio_ovo: data.estagio_ovo || null,
+        }),
+      });
+
+      if (res.ok) {
+        showError("Parâmetros salvos com sucesso!", false);
+        setTimeout(() => {
+          parametroModal.style.display = "none";
+          filtersSection.style.display = "block";
+          parametroForm.style.display = "none";
+        }, 1500);
+      } else {
+        const err = await res.json();
+        showError("Erro: " + err.message, true);
+      }
+    } catch (error) {
+      showError("Erro ao salvar parâmetros: " + error.message, true);
+    }
+  });
+}
+
 function setupDashboardPage() {
   const token = localStorage.getItem("embryotech_token");
   if (!token) {
@@ -52,8 +329,16 @@ function setupDashboardPage() {
     return;
   }
 
-  // Elementos do DOM
-  logoutBtn = document.getElementById("logoutBtn");
+  const payload = parseJwt(token); // Mover esta linha para o início da função
+
+  // Mostrar botão de parâmetros apenas para admin
+  const btnParametros = document.getElementById("btnParametros");
+  if (btnParametros) {
+    btnParametros.style.display =
+      payload && payload.is_admin ? "block" : "none";
+  }
+
+  const logoutBtn = document.getElementById("logoutBtn");
   const showHistoryBtn = document.getElementById("showHistoryBtn");
   const lastReadingContainer = document.getElementById("lastReadingContainer");
   const readingsListContainer = document.getElementById(
@@ -61,7 +346,6 @@ function setupDashboardPage() {
   );
   const loteLabel = document.getElementById("loteLabel");
 
-  // Inicializa gráficos
   const tempChart = new Chart(document.getElementById("tempChart"), {
     type: "line",
     data: { labels: [], datasets: [] },
@@ -80,12 +364,14 @@ function setupDashboardPage() {
     options: { responsive: true, maintainAspectRatio: false },
   });
 
-  // Event Listeners
   if (logoutBtn) logoutBtn.addEventListener("click", handleLogout);
   if (showHistoryBtn)
     showHistoryBtn.addEventListener("click", showHistoryModal);
 
-  // Carrega os dados
+  if (payload && payload.is_admin) {
+    setupParametroModal();
+  }
+
   fetchReadings();
 
   async function fetchReadings() {
@@ -97,17 +383,12 @@ function setupDashboardPage() {
       if (!response.ok) throw new Error("Erro ao carregar leituras");
 
       let readings = await response.json();
-
-      // Ordena as leituras por data (da mais recente para a mais antiga)
       readings.sort(
         (a, b) => new Date(b.data_inicial) - new Date(a.data_inicial)
       );
 
       if (readings.length > 0) {
-        // Pega a primeira leitura (que agora será a mais recente)
         updateLastReading(readings[0]);
-
-        // Para o gráfico, ordena de forma crescente (mais antiga para mais recente)
         const readingsForCharts = [...readings].reverse();
         updateReadingsList(readings);
         updateCharts(readingsForCharts);
@@ -156,7 +437,6 @@ function setupDashboardPage() {
     readings.sort(
       (a, b) => new Date(a.data_inicial) - new Date(b.data_inicial)
     );
-
     const labels = readings.map((r) => formatDate(r.data_inicial, true));
     const temps = readings.map((r) => r.temperatura);
     const umids = readings.map((r) => r.umidade);
@@ -200,18 +480,22 @@ function setupDashboardPage() {
     chart.update();
   }
 
+  function updateReadingsCount(count) {
+    const countElement = document.getElementById("readingsCount");
+    if (countElement) {
+      countElement.innerHTML = `<strong>Total de leituras:</strong> ${count}`;
+    }
+  }
+
   function showHistoryModal() {
     const modal = document.getElementById("customModal");
     const closeBtn = document.querySelector(".custom-close-btn");
 
     modal.style.display = "flex";
-
-    // Fechar ao clicar no botão
     closeBtn.addEventListener("click", () => {
       modal.style.display = "none";
     });
 
-    // Fechar ao clicar fora do modal
     modal.addEventListener("click", (e) => {
       if (e.target === modal) {
         modal.style.display = "none";
@@ -219,14 +503,6 @@ function setupDashboardPage() {
     });
   }
 }
-/*
-function formatDate(dateString, short = false) {
-  if (!dateString) return "N/A";
-  const date = new Date(dateString);
-  if (short) return date.toLocaleTimeString();
-  return date.toLocaleString();
-}
-*/
 
 function formatDate(dateString, short = false) {
   if (!dateString) return "N/A";
@@ -238,11 +514,10 @@ function formatDate(dateString, short = false) {
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-    hour12: false, // Formato 24h
+    hour12: false,
   };
 
   if (short) {
-    // Para os gráficos: dia/mês hora:minuto
     return `${date.toLocaleDateString("pt-BR")} ${date.toLocaleTimeString(
       "pt-BR",
       {
@@ -253,11 +528,9 @@ function formatDate(dateString, short = false) {
     )}`;
   }
 
-  // Data completa: dia/mês/ano hora:minuto:segundo
   return date.toLocaleString("pt-BR", options);
 }
 
-// Configura a página de login
 function setupLoginPage() {
   loginForm = document.getElementById("loginForm");
   if (!loginForm) return;
@@ -325,7 +598,6 @@ function handleLoginError(status) {
   }
 }
 
-// Inicialização da aplicação
 document.addEventListener("DOMContentLoaded", function () {
   if (
     window.location.pathname.endsWith("index.html") ||
@@ -336,38 +608,3 @@ document.addEventListener("DOMContentLoaded", function () {
     setupDashboardPage();
   }
 });
-
-async function fetchReadings() {
-  try {
-    const response = await fetch(`${API_BASE_URL}/leituras`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    if (!response.ok) throw new Error("Erro ao carregar leituras");
-
-    const readings = await response.json();
-
-    if (readings.length > 0) {
-      updateLastReading(readings[0]);
-      updateReadingsList(readings);
-      updateCharts(readings);
-      loteLabel.textContent = `Lote: ${readings[0].lote || "N/A"}`;
-
-      // Atualiza o contador de leituras
-      updateReadingsCount(readings.length);
-    }
-  } catch (error) {
-    console.error("Erro:", error);
-    showError("Erro ao carregar leituras");
-  }
-}
-
-// Nova função para atualizar o contador
-function updateReadingsCount(count) {
-  const countElement = document.getElementById("readingsCount");
-  if (countElement) {
-    countElement.innerHTML = `Total: <strong>${count}</strong> leitura${
-      count !== 1 ? "s" : ""
-    }`;
-  }
-}

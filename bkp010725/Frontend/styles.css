@@ -8,7 +8,7 @@
 
 @font-face {
   font-family: "GOOD-TIMES";
-  src: url("fonts/good-times.otf") format("truetype");
+  src: url("fonts/good-times.ttf") format("truetype");
   font-weight: bold;
   font-style: normal;
 }
@@ -467,70 +467,4 @@ header #logoutBtn {
 
 .custom-save-btn:hover {
   background-color: #1d5615;
-}
-
-.parametro-filters {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  margin-bottom: 20px;
-}
-
-.form-group {
-  margin-bottom: 15px;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 5px;
-  font-weight: bold;
-}
-
-.form-control {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  box-sizing: border-box;
-}
-
-.button-group {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 20px;
-}
-
-.custom-modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 15px 20px;
-  border-bottom: 1px solid #eee;
-}
-
-.custom-modal-header h3 {
-  margin: 0;
-  color: #25691b;
-  flex-grow: 1;
-  text-align: center;
-}
-
-.custom-close-btn {
-  background-color: #25691b;
-  color: white;
-  border: none;
-  padding: 5px 15px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  transition: background-color 0.2s;
-}
-
-.custom-close-btn:hover {
-  background-color: #25691b;
-}
-
-.custom-modal-header .custom-close-btn {
-  margin-left: auto;
 }
