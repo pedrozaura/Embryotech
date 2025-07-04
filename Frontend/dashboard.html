@@ -38,6 +38,13 @@
       <section class="charts-section">
         <h2>Análise Gráfica</h2>
         <div class="chart-container">
+          <div class="lote-selector">
+            <label for="loteFilter">Selecione o Lote:</label>
+            <select id="loteFilter" class="form-control">
+              <option value="">Todos os Lotes</option>
+              <!-- Opções serão preenchidas via JavaScript -->
+            </select>
+          </div>
           <h3 id="loteLabel">Lote: Carregando...</h3>
           <div class="chart-row">
             <div class="chart-wrapper">
@@ -64,20 +71,17 @@
       <div class="custom-modal-content">
         <div class="custom-modal-header">
           <h3>Histórico de Leituras</h3>
+          <span class="custom-close-btn">&times;</span>
         </div>
         <div class="custom-modal-body" id="readingsListContainer">
-          <p>Carregando histórico...</p>
+          <!-- Conteúdo será inserido via JavaScript -->
         </div>
         <div class="custom-modal-footer">
           <div id="readingsCount" class="modal-footer-left"></div>
-          <div class="align-right-group">
-            <button class="custom-close-btn">Fechar</button>
-          </div>
+          <button class="custom-close-btn">Fechar</button>
         </div>
       </div>
     </div>
-
-    <!-- Modal de Parâmetros -->
     <!-- Modal de Parâmetros -->
     <div id="parametroModal" class="custom-modal">
       <div class="custom-modal-content">
@@ -135,17 +139,17 @@
             </div>
 
             <div class="form-group">
-              <label>Pressão Ideal (hPa)</label>
+              <label>Pressão Ideal (hPa) *</label>
               <input type="number" step="0.1" name="pressao_ideal" />
             </div>
 
             <div class="form-group">
-              <label>Lumens</label>
+              <label>Lumens *</label>
               <input type="number" step="1" name="lumens" />
             </div>
 
             <div class="form-group">
-              <label>ID da Sala</label>
+              <label>ID da Sala *</label>
               <input type="number" name="id_sala" />
             </div>
 

@@ -44,11 +44,6 @@ function showError(message, isLoginError = false) {
   showMessage(message, "error", isLoginError);
 }
 
-// Mantenha a função showError para compatibilidade
-function showError(message, isLoginError = false) {
-  showMessage(message, "error", isLoginError);
-}
-
 async function handleLogout() {
   const logoutBtn = document.getElementById("logoutBtn");
   if (logoutBtn) {
@@ -92,6 +87,43 @@ async function carregarEmpresas() {
     console.error("Erro ao carregar empresas:", error);
     showError("Erro ao carregar lista de empresas");
   }
+}
+
+// FUNÇÃO MOVIDA PARA O ESCOPO GLOBAL
+function updateReadingsList(readings) {
+  const container = document.getElementById("readingsListContainer");
+  if (!container) {
+    console.error("readingsListContainer not found when updating list.");
+    return;
+  }
+
+  if (!readings || readings.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <i class="fas fa-clipboard-list"></i>
+        <p>Nenhuma leitura encontrada</p>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="readings-grid">
+      ${readings
+        .map(
+          (reading) => `
+        <div class="reading-item">
+          <p><strong>Data:</strong> ${formatDate(reading.data_inicial)}</p>
+          <p><strong>Temperatura:</strong> ${reading.temperatura} °C</p>
+          <p><strong>Umidade:</strong> ${reading.umidade} %</p>
+          <p><strong>Pressão:</strong> ${reading.pressao} hPa</p>
+          ${reading.lote ? `<p><strong>Lote:</strong> ${reading.lote}</p>` : ""}
+        </div>
+      `
+        )
+        .join("")}
+    </div>
+  `;
 }
 
 async function carregarLotes(empresa) {
@@ -171,6 +203,9 @@ function setupParametroModal() {
   // Fechar modal ao clicar fora
   parametroModal.addEventListener("click", (e) => {
     if (e.target === parametroModal) {
+      document.getElementById("loteSelect").innerHTML =
+        '<option value="">Selecione um lote</option>';
+      document.getElementById("loteSelect").disabled = true;
       parametroModal.style.display = "none";
     }
   });
@@ -179,14 +214,12 @@ function setupParametroModal() {
   document.getElementById("btnParametros").addEventListener("click", () => {
     parametroModal.style.display = "flex";
     carregarEmpresas();
-    filtersSection.style.display = "block";
-    parametroForm.style.display = "none";
-  });
 
-  // Carregar empresas ao abrir o modal
-  document.getElementById("btnParametros").addEventListener("click", () => {
-    parametroModal.style.display = "flex";
-    carregarEmpresas();
+    // Limpa o lote mas mantém a empresa se já estiver selecionada
+    document.getElementById("loteSelect").innerHTML =
+      '<option value="">Selecione um lote</option>';
+    document.getElementById("loteSelect").disabled = true;
+
     filtersSection.style.display = "block";
     parametroForm.style.display = "none";
   });
@@ -195,6 +228,9 @@ function setupParametroModal() {
   parametroModal
     .querySelector(".custom-close-btn")
     .addEventListener("click", () => {
+      document.getElementById("loteSelect").innerHTML =
+        '<option value="">Selecione um lote</option>';
+      document.getElementById("loteSelect").disabled = true;
       parametroModal.style.display = "none";
     });
 
@@ -356,6 +392,14 @@ function setupParametroModal() {
   });
 }
 
+// FUNÇÃO MOVIDA PARA O ESCOPO GLOBAL
+function updateReadingsCount(count) {
+  const countElement = document.getElementById("readingsCount");
+  if (countElement) {
+    countElement.innerHTML = `<strong>Total de leituras:</strong> ${count}`;
+  }
+}
+
 function setupDashboardPage() {
   const token = localStorage.getItem("embryotech_token");
   if (!token) {
@@ -363,7 +407,7 @@ function setupDashboardPage() {
     return;
   }
 
-  const payload = parseJwt(token); // Mover esta linha para o início da função
+  const payload = parseJwt(token);
 
   // Mostrar botão de parâmetros apenas para admin
   const btnParametros = document.getElementById("btnParametros");
@@ -378,7 +422,14 @@ function setupDashboardPage() {
   const readingsListContainer = document.getElementById(
     "readingsListContainer"
   );
+
+  if (showHistoryBtn) {
+    showHistoryBtn.addEventListener("click", showHistoryModal);
+  }
+
   const loteLabel = document.getElementById("loteLabel");
+
+  // Declarar os gráficos
 
   const tempChart = new Chart(document.getElementById("tempChart"), {
     type: "line",
@@ -398,6 +449,54 @@ function setupDashboardPage() {
     options: { responsive: true, maintainAspectRatio: false },
   });
 
+  // Finalizando o processo de declaração dos gráficos
+
+  const loteFilter = document.getElementById("loteFilter");
+
+  // Função para carregar lotes disponíveis
+  async function fetchLotes(empresa = "") {
+    try {
+      const token = localStorage.getItem("embryotech_token");
+      let url = `${API_BASE_URL}/lotes`;
+      if (empresa) {
+        url += `?empresa=${encodeURIComponent(empresa)}`;
+      }
+
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) throw new Error("Erro ao carregar lotes");
+      return await response.json();
+    } catch (error) {
+      console.error("Erro ao carregar lotes:", error);
+      showError("Erro ao carregar lista de lotes");
+      return [];
+    }
+  }
+
+  // Inicializa o combobox de lotes
+  async function initLoteFilter() {
+    // Carrega todos os lotes inicialmente (sem filtro de empresa)
+    const lotes = await fetchLotes();
+
+    loteFilter.innerHTML = '<option value="">Todos os Lotes</option>';
+    lotes.forEach((lote) => {
+      const option = document.createElement("option");
+      option.value = lote;
+      option.textContent = lote;
+      loteFilter.appendChild(option);
+    });
+
+    loteFilter.addEventListener("change", async () => {
+      const loteSelecionado = loteFilter.value;
+      loteLabel.textContent = loteSelecionado
+        ? `Lote: ${loteSelecionado}`
+        : "Lote: Todos";
+      await fetchReadings(loteSelecionado);
+    });
+  }
+
   if (logoutBtn) logoutBtn.addEventListener("click", handleLogout);
   if (showHistoryBtn)
     showHistoryBtn.addEventListener("click", showHistoryModal);
@@ -408,63 +507,75 @@ function setupDashboardPage() {
 
   fetchReadings();
 
-  async function fetchReadings() {
+  async function fetchReadings(lote = "") {
     try {
-      const response = await fetch(`${API_BASE_URL}/leituras`, {
+      console.log(`Buscando leituras para lote: ${lote}`);
+      const token = localStorage.getItem("embryotech_token");
+      let url = `${API_BASE_URL}/leituras`;
+
+      if (lote) {
+        url += `?lote=${encodeURIComponent(lote)}`;
+      }
+
+      const response = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (!response.ok) throw new Error("Erro ao carregar leituras");
+      if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
 
       let readings = await response.json();
-      readings.sort(
-        (a, b) => new Date(b.data_inicial) - new Date(a.data_inicial)
-      );
+
+      // Processamento seguro das datas
+      readings = readings.map((r) => ({
+        ...r,
+        data_inicial: r.data_inicial ? new Date(r.data_inicial) : null,
+        data_final: r.data_final ? new Date(r.data_final) : null,
+      }));
+
+      // Ordenação segura
+      readings.sort((a, b) => {
+        const dateA = a.data_inicial ? new Date(a.data_inicial) : new Date(0);
+        const dateB = b.data_inicial ? new Date(b.data_inicial) : new Date(0);
+        return dateB - dateA;
+      });
 
       if (readings.length > 0) {
         updateLastReading(readings[0]);
-        const readingsForCharts = [...readings].reverse();
-        updateReadingsList(readings);
-        updateCharts(readingsForCharts);
-        loteLabel.textContent = `Lote: ${readings[0].lote || "N/A"}`;
-        updateReadingsCount(readings.length);
+        updateCharts([...readings].reverse());
+      } else {
+        updateLastReading(null);
+        updateCharts([]);
       }
     } catch (error) {
-      console.error("Erro:", error);
-      showError("Erro ao carregar leituras");
+      console.error("Erro ao buscar leituras:", error);
+      showError(`Erro ao carregar leituras: ${error.message}`);
     }
   }
+
+  // INICIALIZE O FILTRO
+  initLoteFilter();
 
   function updateLastReading(reading) {
     if (!lastReadingContainer) return;
 
-    lastReadingContainer.innerHTML = `
+    if (!reading) {
+      lastReadingContainer.innerHTML = `
       <div class="reading-data">
-        <p><strong>Data/Hora:</strong> ${formatDate(reading.data_inicial)}</p>
-        <p><strong>Temperatura:</strong> ${reading.temperatura} °C</p>
-        <p><strong>Umidade:</strong> ${reading.umidade} %</p>
-        <p><strong>Pressão:</strong> ${reading.pressao} hPa</p>
-        <p><strong>Lote:</strong> ${reading.lote || "N/A"}</p>
+        <p>Nenhuma leitura disponível para o lote selecionado</p>
       </div>
     `;
-  }
+      return;
+    }
 
-  function updateReadingsList(readings) {
-    if (!readingsListContainer) return;
-
-    let html = '<div class="readings-grid">';
-    readings.forEach((reading) => {
-      html += `
-        <div class="reading-item">
-          <p><strong>Data:</strong> ${formatDate(reading.data_inicial)}</p>
-          <p><strong>Temperatura:</strong> ${reading.temperatura} °C</p>
-          <p><strong>Umidade:</strong> ${reading.umidade} %</p>
-          <p><strong>Pressão:</strong> ${reading.pressao} hPa</p>
-        </div>
-      `;
-    });
-    html += "</div>";
-    readingsListContainer.innerHTML = html;
+    lastReadingContainer.innerHTML = `
+    <div class="reading-data">
+      <p><strong>Data/Hora:</strong> ${formatDate(reading.data_inicial)}</p>
+      <p><strong>Temperatura:</strong> ${reading.temperatura} °C</p>
+      <p><strong>Umidade:</strong> ${reading.umidade} %</p>
+      <p><strong>Pressão:</strong> ${reading.pressao} hPa</p>
+      <p><strong>Lote:</strong> ${reading.lote || "N/A"}</p>
+    </div>
+  `;
   }
 
   function updateCharts(readings) {
@@ -495,7 +606,7 @@ function setupDashboardPage() {
       labels,
       presses,
       "Pressão (hPa)",
-      "rgba(75, 192, 192, 0.8)"
+      "rgba(3, 62, 253, 0.8)"
     );
   }
 
@@ -514,27 +625,87 @@ function setupDashboardPage() {
     chart.update();
   }
 
-  function updateReadingsCount(count) {
-    const countElement = document.getElementById("readingsCount");
-    if (countElement) {
-      countElement.innerHTML = `<strong>Total de leituras:</strong> ${count}`;
-    }
-  }
-
   function showHistoryModal() {
     const modal = document.getElementById("customModal");
-    const closeBtn = document.querySelector(".custom-close-btn");
+    const closeBtn = document.querySelector("#customModal .custom-close-btn");
+    const loteSelecionado = document.getElementById("loteFilter").value;
 
     modal.style.display = "flex";
-    closeBtn.addEventListener("click", () => {
-      modal.style.display = "none";
+
+    // Use um pequeno timeout para garantir que o modal seja renderizado antes de buscar e atualizar o conteúdo
+    setTimeout(() => {
+      fetchHistoryReadings(loteSelecionado);
+    }, 50);
+
+    // Garanta que apenas um listener de evento seja anexado
+    const existingCloseBtnListener = closeBtn._eventListener;
+    if (!existingCloseBtnListener) {
+      const newCloseBtnListener = () => {
+        modal.style.display = "none";
+      };
+      closeBtn.addEventListener("click", newCloseBtnListener);
+      closeBtn._eventListener = newCloseBtnListener;
+    }
+
+    const existingModalClickListener = modal._eventListener;
+    if (!existingModalClickListener) {
+      const newModalClickListener = (e) => {
+        if (e.target === modal) {
+          modal.style.display = "none";
+        }
+      };
+      modal.addEventListener("click", newModalClickListener);
+      modal._eventListener = newModalClickListener;
+    }
+  }
+}
+
+async function fetchHistoryReadings(lote = "") {
+  try {
+    const token = localStorage.getItem("embryotech_token");
+    const container = document.getElementById("readingsListContainer");
+
+    if (!container) {
+      console.error(
+        "Elemento readingsListContainer não encontrado em fetchHistoryReadings"
+      );
+      return;
+    }
+
+    container.innerHTML = "<p>Carregando histórico...</p>";
+
+    const url = lote
+      ? `${API_BASE_URL}/leituras?lote=${encodeURIComponent(lote)}`
+      : `${API_BASE_URL}/leituras`;
+
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
     });
 
-    modal.addEventListener("click", (e) => {
-      if (e.target === modal) {
-        modal.style.display = "none";
-      }
-    });
+    if (!response.ok) throw new Error("Erro ao carregar histórico");
+
+    let readings = await response.json();
+
+    // Processamento das datas
+    readings = readings.map((r) => ({
+      ...r,
+      data_inicial: r.data_inicial ? new Date(r.data_inicial) : null,
+      data_final: r.data_final ? new Date(r.data_final) : null,
+    }));
+
+    readings.sort(
+      (a, b) => new Date(b.data_inicial) - new Date(a.data_inicial)
+    );
+
+    updateReadingsList(readings);
+    updateReadingsCount(readings.length);
+  } catch (error) {
+    console.error("Erro em fetchHistoryReadings:", error);
+    const container = document.getElementById("readingsListContainer");
+    if (container) {
+      container.innerHTML = `<p class="error">Erro ao carregar histórico: ${error.message}</p>`;
+    }
+    showError("Erro ao carregar histórico de leituras");
   }
 }
 

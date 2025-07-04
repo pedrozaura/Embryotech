@@ -585,63 +585,30 @@ def criar_leitura(current_user):
 @app.route('/leituras', methods=['GET'])
 @token_required
 def listar_leituras(current_user):
-    """
-    Listar todas as leituras
-    ---
-    tags:
-      - Leituras
-    security:
-      - Bearer: []
-    responses:
-      200:
-        description: Lista de leituras
-        schema:
-          type: array
-          items:
-            $ref: '#/definitions/Leitura'
-      401:
-        description: Token inválido ou faltando
-    definitions:
-      Leitura:
-        type: object
-        properties:
-          id:
-            type: integer
-            example: 1
-          umidade:
-            type: float
-            example: 65.5
-          temperatura:
-            type: float
-            example: 36.7
-          pressao:
-            type: float
-            example: 1.2
-          lote:
-            type: string
-            example: "Lote A"
-          data_inicial:
-            type: string
-            format: date-time
-            example: "2023-05-20T10:30:00"
-          data_final:
-            type: string
-            format: date-time
-            example: "2023-05-21T10:30:00"
-    """     
-    leituras = Leitura.query.all()
-    retorno = []
-    for l in leituras:
-        retorno.append({
-            'id': l.id,
-            'umidade': l.umidade,
-            'temperatura': l.temperatura,
-            'pressao': l.pressao,
-            'lote': l.lote,
-            'data_inicial': l.data_inicial,
-            'data_final': l.data_final
-        })
-    return jsonify(retorno), 200
+    lote = request.args.get('lote')
+    
+    # Debug: Log do parâmetro recebido
+    #current_app.logger.info(f"Filtrando leituras pelo lote: {lote}")
+    
+    query = Leitura.query
+    
+    if lote:
+        query = query.filter(Leitura.lote == lote)
+    
+    leituras = query.order_by(Leitura.data_inicial.desc()).all()
+    
+    # Debug: Log da quantidade de leituras encontradas
+    #current_app.logger.info(f"Leituras encontradas: {len(leituras)}")
+    
+    return jsonify([{
+        'id': l.id,
+        'umidade': l.umidade,
+        'temperatura': l.temperatura,
+        'pressao': l.pressao,
+        'lote': l.lote,
+        'data_inicial': l.data_inicial.isoformat() if l.data_inicial else None,
+        'data_final': l.data_final.isoformat() if l.data_final else None
+    } for l in leituras]), 200
 
 @app.route('/leituras/<int:leitura_id>', methods=['PUT'])
 @token_required
@@ -866,42 +833,34 @@ def get_empresas(current_user):
 @token_required
 def get_lotes(current_user):
     """
-    Obter lista de lotes para uma empresa específica
+    Obter lista de todos os lotes (ou filtrado por empresa)
     ---
     tags:
       - Parâmetros
-    security:
-      - Bearer: []
     parameters:
       - name: empresa
         in: query
         type: string
-        required: true
+        required: false
         description: Nome da empresa para filtrar os lotes
     responses:
       200:
-        description: Lista de lotes da empresa
+        description: Lista de lotes
         schema:
           type: array
           items:
             type: string
             example: "LOTE-2023-001"
-      400:
-        description: Empresa não especificada
-      401:
-        description: Token inválido ou ausente
-      403:
-        description: Acesso não autorizado para usuário não-admin
     """
-    if not current_user.is_admin:
-        return jsonify({'message': 'Acesso negado!'}), 403
-    
     empresa = request.args.get('empresa')
-    if not empresa:
-        return jsonify({'message': 'Empresa não especificada'}), 400
     
-    lotes = db.session.query(Parametro.lote).filter_by(empresa=empresa).distinct().all()
+    query = db.session.query(Parametro.lote).distinct()
+    if empresa:
+        query = query.filter_by(empresa=empresa)
+    
+    lotes = query.all()
     return jsonify([l[0] for l in lotes if l[0]]), 200
+
 
 @app.route('/parametros', methods=['GET'])
 @token_required

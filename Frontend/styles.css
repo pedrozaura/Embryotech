@@ -65,14 +65,23 @@ body {
   object-fit: contain;
 }
 
-@media (max-width: 480px) {
-  .login-container h1 {
-    flex-direction: column;
-    gap: 5px;
+@media (max-width: 768px) {
+  .readings-grid {
+    grid-template-columns: 1fr;
   }
 
-  .logo-icon {
-    margin-bottom: 5px;
+  .custom-modal-content {
+    width: 95%;
+    max-height: 90vh;
+  }
+
+  .button-group {
+    flex-direction: column;
+  }
+
+  .button-group button {
+    max-width: 100%;
+    width: 100%;
   }
 }
 
@@ -127,7 +136,7 @@ button:hover {
 header {
   background-color: #25691b;
   color: white;
-  padding: 1rem;
+  padding: 0.1rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -150,14 +159,7 @@ header {
   left: 20px;
 }
 
-header h1 {
-  margin: 0;
-  padding: 0;
-  font-size: 1.5rem;
-  text-align: center;
-}
-
-#logoutBtn {
+header #logoutBtn {
   width: auto;
   padding: 0.5rem 1rem;
   border: none;
@@ -168,7 +170,7 @@ header h1 {
   position: static;
 }
 
-#logoutBtn:hover {
+header #logoutBtn:hover {
   background-color: #64d354;
   margin-left: auto;
 }
@@ -216,14 +218,6 @@ canvas {
 }
 
 /* Tabela de histórico */
-.reading-item {
-  padding: 0.5rem;
-  border-bottom: 1px solid #eee;
-}
-
-.reading-item:last-child {
-  border-bottom: none;
-}
 
 main {
   padding: 1rem;
@@ -243,15 +237,29 @@ section {
   margin-bottom: 1rem;
 }
 
+/* Substitua todas as definições de .reading-item por esta: */
+.readings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 15px;
+  margin-top: 20px;
+}
+
 .reading-item {
-  background: #f8f9fa;
+  background: white;
   padding: 15px;
   border-radius: 8px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  margin-bottom: 10px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-left: 4px solid #25691b;
+}
+
+.reading-item p {
+  margin: 8px 0;
+  font-size: 0.95rem;
+}
+
+.reading-item strong {
+  color: #25691b;
 }
 
 .reading-value {
@@ -354,7 +362,12 @@ section {
 .custom-modal-body {
   padding: 20px;
   overflow-y: auto;
+  max-height: 65vh; /* Ajustado para dar mais espaço */
   flex-grow: 1;
+}
+
+.custom-modal-content {
+  max-height: 85vh; /* Ajuste para telas menores */
 }
 
 .custom-modal-footer {
@@ -364,19 +377,6 @@ section {
   justify-content: flex-end;
   align-items: center;
   gap: 20px;
-}
-
-.custom-close-btn {
-  background-color: #25691b;
-  color: white;
-  border: none;
-  padding: 8px 20px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 1rem;
-  transition: background-color 0.2s;
-  min-width: 100px;
-  box-sizing: border-box;
 }
 
 .modal-footer-left {
@@ -392,8 +392,21 @@ section {
   margin-left: auto;
 }
 
+.custom-close-btn {
+  background-color: #25691b !important; /* Destaque para o botão fechar */
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s;
+  /* Novas regras para dimensionamento do botão Fechar */
+  width: auto; /* Permite que a largura se ajuste ao conteúdo */
+  min-width: unset; /* Remove qualquer largura mínima herdada */
+}
+
 .custom-close-btn:hover {
-  background-color: #1d5615;
+  background-color: #64d354 !important;
 }
 
 .modal-footer-left strong {
@@ -516,25 +529,6 @@ header #logoutBtn {
   text-align: center;
 }
 
-.custom-close-btn {
-  background-color: #25691b;
-  color: white;
-  border: none;
-  padding: 5px 15px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  transition: background-color 0.2s;
-}
-
-.custom-close-btn:hover {
-  background-color: #25691b;
-}
-
-.custom-modal-header .custom-close-btn {
-  margin-left: auto;
-}
-
 .success-message {
   color: #25691b;
   background-color: #e8f5e9;
@@ -556,4 +550,37 @@ header #logoutBtn {
   to {
     opacity: 1;
   }
+}
+
+.lote-selector {
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lote-selector label {
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.lote-selector select {
+  padding: 8px 12px;
+  border: 1px solid #bdc3c7;
+  border-radius: 4px;
+  background-color: white;
+  font-family: "Montserrat", sans-serif;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: #666;
+}
+
+.empty-state i {
+  font-size: 3rem;
+  color: #bdc3c7;
+  margin-bottom: 15px;
+  display: block;
 }
