@@ -200,6 +200,16 @@ function setupParametroModal() {
   const parametroForm = document.getElementById("parametroForm");
   const filtersSection = document.querySelector(".parametro-filters");
 
+  const fecharRodapeBtn = document.querySelector(
+    "#customModal .custom-modal-footer .custom-close-btn"
+  );
+
+  if (fecharRodapeBtn) {
+    fecharRodapeBtn.addEventListener("click", () => {
+      document.getElementById("customModal").style.display = "none";
+    });
+  }
+
   // Fechar modal ao clicar fora
   parametroModal.addEventListener("click", (e) => {
     if (e.target === parametroModal) {
