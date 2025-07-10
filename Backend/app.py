@@ -40,7 +40,7 @@ swagger_template = {
     "swagger": "2.0",
     "info": {
         "title": "Embryotech API  --  Outside Agrotech",
-        "description": "API para gerenciamento de usuários, itens e leituras de embriões",
+        "description": "API para gerenciamento de usuários, parâmetros e leituras de embriões",
         "contact": {
             "email": "pedro.zaura@outsideagro.tech"
         },
@@ -48,8 +48,7 @@ swagger_template = {
     },
     "basePath": "/",
     "schemes": [
-        "http",
-        "https"
+        "http"
     ],
     "securityDefinitions": {
         "Bearer": {
@@ -234,293 +233,293 @@ def login():
     
     return jsonify({'token': token}), 200
 
-# Rotas CRUD para Items
-@app.route('/items', methods=['GET'])
-@token_required
-def get_all_items(current_user):
-    """
-    Listar todos os itens do usuário
-    ---
-    tags:
-      - Itens
-    security:
-      - Bearer: []
-    responses:
-      200:
-        description: Lista de itens
-        schema:
-          type: object
-          properties:
-            items:
-              type: array
-              items:
-                $ref: '#/definitions/Item'
-      401:
-        description: Token inválido ou faltando
-    definitions:
-      Item:
-        type: object
-        properties:
-          id:
-            type: integer
-            example: 1
-          name:
-            type: string
-            example: "Item exemplo"
-          description:
-            type: string
-            example: "Descrição do item"
-    """
-    items = Item.query.filter_by(created_by=current_user.id).all()
+# # Rotas CRUD para Items
+# @app.route('/items', methods=['GET'])
+# @token_required
+# def get_all_items(current_user):
+    # """
+    # Listar todos os itens do usuário
+    # ---
+    # tags:
+      # - Itens
+    # security:
+      # - Bearer: []
+    # responses:
+      # 200:
+        # description: Lista de itens
+        # schema:
+          # type: object
+          # properties:
+            # items:
+              # type: array
+              # items:
+                # $ref: '#/definitions/Item'
+      # 401:
+        # description: Token inválido ou faltando
+    # definitions:
+      # Item:
+        # type: object
+        # properties:
+          # id:
+            # type: integer
+            # example: 1
+          # name:
+            # type: string
+            # example: "Item exemplo"
+          # description:
+            # type: string
+            # example: "Descrição do item"
+    # """
+    # items = Item.query.filter_by(created_by=current_user.id).all()
     
-    output = []
-    for item in items:
-        item_data = {
-            'id': item.id,
-            'name': item.name,
-            'description': item.description
-        }
-        output.append(item_data)
+    # output = []
+    # for item in items:
+        # item_data = {
+            # 'id': item.id,
+            # 'name': item.name,
+            # 'description': item.description
+        # }
+        # output.append(item_data)
     
-    return jsonify({'items': output}), 200
+    # return jsonify({'items': output}), 200
 
-@app.route('/items/<int:item_id>', methods=['GET'])
-@token_required
-def get_one_item(current_user, item_id):
-    """
-    Obter detalhes de um item específico
-    ---
-    tags:
-      - Itens
-    security:
-      - Bearer: []
-    parameters:
-      - name: item_id
-        in: path
-        type: integer
-        required: true
-        description: ID do item a ser recuperado
-        example: 1
-    responses:
-      200:
-        description: Detalhes do item
-        schema:
-          type: object
-          properties:
-            item:
-              $ref: '#/definitions/Item'
-      401:
-        description: Token inválido ou faltando
-        schema:
-          type: object
-          properties:
-            message:
-              type: string
-              example: "Token é invalido!"
-      404:
-        description: Item não encontrado
-        schema:
-          type: object
-          properties:
-            message:
-              type: string
-              example: "Item não encontrado!"
-    """
-    item = Item.query.filter_by(id=item_id, created_by=current_user.id).first()
+# @app.route('/items/<int:item_id>', methods=['GET'])
+# @token_required
+# def get_one_item(current_user, item_id):
+    # """
+    # Obter detalhes de um item específico
+    # ---
+    # tags:
+      # - Itens
+    # security:
+      # - Bearer: []
+    # parameters:
+      # - name: item_id
+        # in: path
+        # type: integer
+        # required: true
+        # description: ID do item a ser recuperado
+        # example: 1
+    # responses:
+      # 200:
+        # description: Detalhes do item
+        # schema:
+          # type: object
+          # properties:
+            # item:
+              # $ref: '#/definitions/Item'
+      # 401:
+        # description: Token inválido ou faltando
+        # schema:
+          # type: object
+          # properties:
+            # message:
+              # type: string
+              # example: "Token é invalido!"
+      # 404:
+        # description: Item não encontrado
+        # schema:
+          # type: object
+          # properties:
+            # message:
+              # type: string
+              # example: "Item não encontrado!"
+    # """
+    # item = Item.query.filter_by(id=item_id, created_by=current_user.id).first()
     
-    if not item:
-        return jsonify({'message': 'Item not found!'}), 404
+    # if not item:
+        # return jsonify({'message': 'Item not found!'}), 404
     
-    item_data = {
-        'id': item.id,
-        'name': item.name,
-        'description': item.description
-    }
+    # item_data = {
+        # 'id': item.id,
+        # 'name': item.name,
+        # 'description': item.description
+    # }
     
-    return jsonify({'item': item_data}), 200
+    # return jsonify({'item': item_data}), 200
 
-@app.route('/items', methods=['POST'])
-@token_required
-def create_item(current_user):
-    """
-    Criar novo item
-    ---
-    tags:
-      - Itens
-    security:
-      - Bearer: []
-    parameters:
-      - in: body
-        name: body
-        required: true
-        schema:
-          id: NewItem
-          required:
-            - name
-          properties:
-            name:
-              type: string
-              example: "Novo item"
-            description:
-              type: string
-              example: "Descrição opcional"
-    responses:
-      201:
-        description: Item criado com sucesso
-      400:
-        description: Nome do item faltando
-      401:
-        description: Token inválido ou faltando
-    """
-    data = request.get_json()
+# @app.route('/items', methods=['POST'])
+# @token_required
+# def create_item(current_user):
+    # """
+    # Criar novo item
+    # ---
+    # tags:
+      # - Itens
+    # security:
+      # - Bearer: []
+    # parameters:
+      # - in: body
+        # name: body
+        # required: true
+        # schema:
+          # id: NewItem
+          # required:
+            # - name
+          # properties:
+            # name:
+              # type: string
+              # example: "Novo item"
+            # description:
+              # type: string
+              # example: "Descrição opcional"
+    # responses:
+      # 201:
+        # description: Item criado com sucesso
+      # 400:
+        # description: Nome do item faltando
+      # 401:
+        # description: Token inválido ou faltando
+    # """
+    # data = request.get_json()
     
-    if not data or not data.get('name'):
-        return jsonify({'message': 'Name is required!'}), 400
+    # if not data or not data.get('name'):
+        # return jsonify({'message': 'Name is required!'}), 400
     
-    new_item = Item(
-        name=data['name'],
-        description=data.get('description', ''),
-        created_by=current_user.id
-    )
+    # new_item = Item(
+        # name=data['name'],
+        # description=data.get('description', ''),
+        # created_by=current_user.id
+    # )
     
-    db.session.add(new_item)
-    db.session.commit()
+    # db.session.add(new_item)
+    # db.session.commit()
     
-    return jsonify({'message': 'Item created successfully!'}), 201
+    # return jsonify({'message': 'Item created successfully!'}), 201
 
-@app.route('/items/<int:item_id>', methods=['PUT'])
-@token_required
-def update_item(current_user, item_id):
-    """
-    Atualizar um item específico
-    ---
-    tags:
-      - Itens
-    security:
-      - Bearer: []
-    parameters:
-      - name: item_id
-        in: path
-        type: integer
-        required: true
-        description: ID do item a ser atualizado
-        example: 1
-      - in: body
-        name: body
-        required: true
-        schema:
-          id: ItemUpdate
-          properties:
-            name:
-              type: string
-              example: "Novo nome do item"
-              description: Novo nome para o item (opcional)
-            description:
-              type: string
-              example: "Nova descrição detalhada"
-              description: Nova descrição para o item (opcional)
-    responses:
-      200:
-        description: Item atualizado com sucesso
-        schema:
-          type: object
-          properties:
-            message:
-              type: string
-              example: "Item atualizado com sucesso!"
-      400:
-        description: Nenhum campo válido fornecido para atualização
-        schema:
-          type: object
-          properties:
-            message:
-              type: string
-              example: "Não existem campos validos para atualizar!"
-      401:
-        description: Token inválido ou faltando
-        schema:
-          type: object
-          properties:
-            message:
-              type: string
-              example: "Token é invalido!"
-      404:
-        description: Item não encontrado
-        schema:
-          type: object
-          properties:
-            message:
-              type: string
-              example: "Item não encontrado!"
-    """
-    item = Item.query.filter_by(id=item_id, created_by=current_user.id).first()
+# @app.route('/items/<int:item_id>', methods=['PUT'])
+# @token_required
+# def update_item(current_user, item_id):
+    # """
+    # Atualizar um item específico
+    # ---
+    # tags:
+      # - Itens
+    # security:
+      # - Bearer: []
+    # parameters:
+      # - name: item_id
+        # in: path
+        # type: integer
+        # required: true
+        # description: ID do item a ser atualizado
+        # example: 1
+      # - in: body
+        # name: body
+        # required: true
+        # schema:
+          # id: ItemUpdate
+          # properties:
+            # name:
+              # type: string
+              # example: "Novo nome do item"
+              # description: Novo nome para o item (opcional)
+            # description:
+              # type: string
+              # example: "Nova descrição detalhada"
+              # description: Nova descrição para o item (opcional)
+    # responses:
+      # 200:
+        # description: Item atualizado com sucesso
+        # schema:
+          # type: object
+          # properties:
+            # message:
+              # type: string
+              # example: "Item atualizado com sucesso!"
+      # 400:
+        # description: Nenhum campo válido fornecido para atualização
+        # schema:
+          # type: object
+          # properties:
+            # message:
+              # type: string
+              # example: "Não existem campos validos para atualizar!"
+      # 401:
+        # description: Token inválido ou faltando
+        # schema:
+          # type: object
+          # properties:
+            # message:
+              # type: string
+              # example: "Token é invalido!"
+      # 404:
+        # description: Item não encontrado
+        # schema:
+          # type: object
+          # properties:
+            # message:
+              # type: string
+              # example: "Item não encontrado!"
+    # """
+    # item = Item.query.filter_by(id=item_id, created_by=current_user.id).first()
     
-    if not item:
-        return jsonify({'message': 'Item not found!'}), 404
+    # if not item:
+        # return jsonify({'message': 'Item not found!'}), 404
     
-    data = request.get_json()
+    # data = request.get_json()
     
-    if 'name' in data:
-        item.name = data['name']
-    if 'description' in data:
-        item.description = data['description']
+    # if 'name' in data:
+        # item.name = data['name']
+    # if 'description' in data:
+        # item.description = data['description']
     
-    db.session.commit()
+    # db.session.commit()
     
-    return jsonify({'message': 'Item updated successfully!'}), 200
+    # return jsonify({'message': 'Item updated successfully!'}), 200
 
-@app.route('/items/<int:item_id>', methods=['DELETE'])
-@token_required
-def delete_item(current_user, item_id):
-    """
-    Deletar um item específico
-    ---
-    tags:
-      - Itens
-    security:
-      - Bearer: []
-    parameters:
-      - name: item_id
-        in: path
-        type: integer
-        required: true
-        description: ID do item a ser deletado
-        example: 1
-    responses:
-      200:
-        description: Item deletado com sucesso
-        schema:
-          type: object
-          properties:
-            message:
-              type: string
-              example: "Item Deletado com Sucesso!"
-      401:
-        description: Token inválido ou faltando
-        schema:
-          type: object
-          properties:
-            message:
-              type: string
-              example: "Token é invalido!"
-      404:
-        description: Item não encontrado
-        schema:
-          type: object
-          properties:
-            message:
-              type: string
-              example: "Item não encontrado!"
-    """
-    item = Item.query.filter_by(id=item_id, created_by=current_user.id).first()
+# @app.route('/items/<int:item_id>', methods=['DELETE'])
+# @token_required
+# def delete_item(current_user, item_id):
+    # """
+    # Deletar um item específico
+    # ---
+    # tags:
+      # - Itens
+    # security:
+      # - Bearer: []
+    # parameters:
+      # - name: item_id
+        # in: path
+        # type: integer
+        # required: true
+        # description: ID do item a ser deletado
+        # example: 1
+    # responses:
+      # 200:
+        # description: Item deletado com sucesso
+        # schema:
+          # type: object
+          # properties:
+            # message:
+              # type: string
+              # example: "Item Deletado com Sucesso!"
+      # 401:
+        # description: Token inválido ou faltando
+        # schema:
+          # type: object
+          # properties:
+            # message:
+              # type: string
+              # example: "Token é invalido!"
+      # 404:
+        # description: Item não encontrado
+        # schema:
+          # type: object
+          # properties:
+            # message:
+              # type: string
+              # example: "Item não encontrado!"
+    # """
+    # item = Item.query.filter_by(id=item_id, created_by=current_user.id).first()
     
-    if not item:
-        return jsonify({'message': 'Item not found!'}), 404
+    # if not item:
+        # return jsonify({'message': 'Item not found!'}), 404
     
-    db.session.delete(item)
-    db.session.commit()
+    # db.session.delete(item)
+    # db.session.commit()
     
-    return jsonify({'message': 'Item deleted successfully!'}), 200
+    # return jsonify({'message': 'Item deleted successfully!'}), 200
 
 @app.route('/leituras', methods=['POST'])
 @token_required
@@ -585,6 +584,60 @@ def criar_leitura(current_user):
 @app.route('/leituras', methods=['GET'])
 @token_required
 def listar_leituras(current_user):
+    """
+    Listar todas as leituras de embriões
+    ---
+    tags:
+      - Leituras
+    security:
+      - Bearer: []
+    parameters:
+      - name: lote
+        in: query
+        type: string
+        required: false
+        description: Filtro opcional para buscar leituras de um lote específico
+        example: "LOTE-2024-XYZ"
+    responses:
+      200:
+        description: Lista de leituras encontradas
+        schema:
+          type: array
+          items:
+            $ref: '#/definitions/Leitura'
+      401:
+        description: Token inválido ou ausente
+    definitions:
+      Leitura:
+        type: object
+        properties:
+          id:
+            type: integer
+            example: 1
+          umidade:
+            type: number
+            format: float
+            example: 65.0
+          temperatura:
+            type: number
+            format: float
+            example: 37.5
+          pressao:
+            type: number
+            format: float
+            example: 1013.2
+          lote:
+            type: string
+            example: "LOTE-2024-XYZ"
+          data_inicial:
+            type: string
+            format: date-time
+            example: "2025-07-10T08:00:00"
+          data_final:
+            type: string
+            format: date-time
+            example: "2025-07-10T09:00:00"
+    """
     lote = request.args.get('lote')
     
     # Debug: Log do parâmetro recebido
@@ -713,7 +766,7 @@ def criar_parametro(current_user):
           properties:
             empresa:
               type: string
-              example: "Embrapa"
+              example: "Outside Agrotech"
               description: Nome da empresa responsável pelo lote
             lote:
               type: string
@@ -817,7 +870,7 @@ def get_empresas(current_user):
           type: array
           items:
             type: string
-            example: "Embrapa"
+            example: "Outside Agrotech"
       401:
         description: Token inválido ou ausente
       403:
@@ -934,7 +987,7 @@ def atualizar_parametro(current_user, id):
           properties:
             empresa:
               type: string
-              example: "Embrapa"
+              example: "Outside Agrotech"
             lote:
               type: string
               example: "LOTE-2023-001"
