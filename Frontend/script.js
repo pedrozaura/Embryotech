@@ -329,7 +329,7 @@ function setupParametroModal() {
         form.elements.id_sala.value = parametro.id_sala || "";
         form.elements.estagio_ovo.value = parametro.estagio_ovo || "";
       } else {
-        showError("Nenhum parâmetro encontrado para este lote", true);
+        showError("Nenhum parâmetro encontrado para este lote", "error", true);
       }
     });
 
@@ -348,6 +348,12 @@ function setupParametroModal() {
     if (!data.lumens) missingFields.push("Lumens");
     if (!data.id_sala) missingFields.push("ID da Sala");
     if (!data.estagio_ovo) missingFields.push("Estágio do Ovo");
+
+    const estagio = parseInt(data.estagio_ovo, 10);
+    if (isNaN(estagio) || estagio < 1 || estagio > 18) {
+      showMessage("O estágio do ovo deve estar entre 1 e 18.", "error", true);
+      return;
+    }
 
     if (missingFields.length > 0) {
       showMessage(
@@ -637,35 +643,32 @@ function setupDashboardPage() {
 
   function showHistoryModal() {
     const modal = document.getElementById("customModal");
-    const closeBtn = document.querySelector("#customModal .custom-close-btn");
     const loteSelecionado = document.getElementById("loteFilter").value;
 
     modal.style.display = "flex";
 
-    // Use um pequeno timeout para garantir que o modal seja renderizado antes de buscar e atualizar o conteúdo
     setTimeout(() => {
       fetchHistoryReadings(loteSelecionado);
     }, 50);
 
-    // Garanta que apenas um listener de evento seja anexado
-    const existingCloseBtnListener = closeBtn._eventListener;
-    if (!existingCloseBtnListener) {
-      const newCloseBtnListener = () => {
-        modal.style.display = "none";
-      };
-      closeBtn.addEventListener("click", newCloseBtnListener);
-      closeBtn._eventListener = newCloseBtnListener;
-    }
+    // aplica o evento a todos os botões de fechar
+    const closeButtons = modal.querySelectorAll(".custom-close-btn");
+    closeButtons.forEach((btn) => {
+      if (!btn.dataset.listenerAttached) {
+        btn.addEventListener("click", () => {
+          modal.style.display = "none";
+        });
+        btn.dataset.listenerAttached = "true";
+      }
+    });
 
-    const existingModalClickListener = modal._eventListener;
-    if (!existingModalClickListener) {
-      const newModalClickListener = (e) => {
+    if (!modal.dataset.listenerAttached) {
+      modal.addEventListener("click", (e) => {
         if (e.target === modal) {
           modal.style.display = "none";
         }
-      };
-      modal.addEventListener("click", newModalClickListener);
-      modal._eventListener = newModalClickListener;
+      });
+      modal.dataset.listenerAttached = "true";
     }
   }
 }
