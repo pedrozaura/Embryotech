@@ -18,10 +18,16 @@ from datetime import timedelta
 
 from models import User, Item, Leitura, Parametro
 
+# Obtenha o caminho absoluto do diretório onde app.py está (Backend/)
+basedir = os.path.abspath(os.path.dirname(__file__))
+
 # Configuração da porta
 PORT = int(os.environ.get('PORT', 5001))  # Padrão 5001, mas pode ser sobrescrito
 
-app = Flask(__name__)
+app = Flask(__name__,
+          static_folder=os.path.join(basedir, 'static'),
+          template_folder=os.path.join(basedir, 'templates'))
+
 CORS(app)
 @app.after_request
 def after_request(response):
@@ -1072,4 +1078,4 @@ def atualizar_parametro(current_user, id):
 
 if __name__ == '__main__':
     # app.run(debug=app.config['DEBUG'])
-    app.run(host='0.0.0.0', port=5001, debug=True)
+    app.run(host='0.0.0.0', port=9001, debug=True)
