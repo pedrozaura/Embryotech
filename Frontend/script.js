@@ -1,6 +1,6 @@
 // script.js completo com funcionalidade de parâmetros por empresa e lote
 
-const API_BASE_URL = "http://147.79.104.68:5001";
+const API_BASE_URL = "http://172.16.1.22:5001";
 
 let loginForm, errorMessage, logoutBtn;
 
