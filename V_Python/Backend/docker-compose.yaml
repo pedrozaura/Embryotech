@@ -1,0 +1,77 @@
+services:
+  embryotech-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: embryotech-app
+    ports:
+      - "5001:5001"
+    environment:
+      # Configurações do banco de dados
+      - DB_USER=postgres
+      - DB_PASSWORD=CHESS5558a72
+      - DB_HOST=212.85.1.215
+      - DB_PORT=5432
+      - DB_NAME=embryotech
+
+      # Chaves de segurança - IMPORTANTE: Altere essas chaves em produção!
+      - SECRET_KEY=sua_chave_gerada_com_token_urlsafe_32_docker
+      - JWT_SECRET_KEY=sua_chave_gerada_com_token_hex_32_docker
+
+      # Configurações do Flask
+      - FLASK_APP=app.py
+      - FLASK_ENV=production
+      - DEBUG=False
+
+      # Configuração da porta
+      - PORT=5001
+
+    volumes:
+      # Monta os arquivos estáticos e templates (opcional, já estão na imagem)
+      - ./static:/app/static
+      - ./templates:/app/templates
+      - ./logs:/app/logs
+
+    restart: unless-stopped
+
+    # Aguarda até o banco estar disponível (se usar banco local)
+    # depends_on:
+    #   - postgres
+
+    # Para corrigir problemas de escala, usar servidor Flask
+    #command: ["python", "app.py"]
+
+    # Para produção (depois de corrigir) - Gunicorn
+    command:
+      [
+        "gunicorn",
+        "--bind",
+        "0.0.0.0:5001",
+        "--workers",
+        "1",
+        "--timeout",
+        "120",
+        "--keep-alive",
+        "2",
+        "--access-logfile",
+        "-",
+        "app:app",
+      ]
+
+  # OPCIONAL: Use este serviço se quiser um banco PostgreSQL local
+  # Descomente as linhas abaixo se não quiser usar o banco externo
+
+  # postgres:
+  #   image: postgres:15
+  #   container_name: embryotech-postgres
+  #   environment:
+  #     - POSTGRES_DB=embryotech
+  #     - POSTGRES_USER=postgres
+  #     - POSTGRES_PASSWORD=CHESS5558a72
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   restart: unless-stopped
+# volumes:
+#   postgres_data:

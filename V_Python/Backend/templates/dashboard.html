@@ -477,7 +477,8 @@
     setupCharts();
     setupAdminControls();
     initLoteFilter();
-    fetchReadings(); // Busca a última leitura para o card superior
+    // CORREÇÃO: Não buscar leituras automaticamente - só quando lote for selecionado
+    updateLastReading(null); // Inicializar com mensagem vazia
   }
 
   function setupAdminControls() {
@@ -832,9 +833,91 @@
   }
 
   function editarParametro(id) {
-    // Buscar o parâmetro e preencher o formulário
-    // Esta função pode ser implementada se necessário
-    showMessage("Funcionalidade de edição em desenvolvimento", "success");
+    // Buscar dados do parâmetro e abrir formulário para edição
+    buscarParametroPorId(id);
+  }
+
+  async function buscarParametroPorId(id) {
+    try {
+      const token = localStorage.getItem("embryotech_token");
+
+      // Como precisamos buscar um parâmetro específico por ID e não temos endpoint direto,
+      // vamos usar uma abordagem diferente: buscar pelos dados da linha clicada
+      const parametrosEncontrados = document.getElementById(
+        "parametrosEncontrados"
+      );
+      const tabela = parametrosEncontrados.querySelector("table tbody");
+
+      if (tabela) {
+        const linhas = tabela.querySelectorAll("tr");
+        for (let linha of linhas) {
+          const primeiraColuna = linha.querySelector("td");
+          if (primeiraColuna && primeiraColuna.textContent == id) {
+            // Extrair dados da linha da tabela
+            const colunas = linha.querySelectorAll("td");
+            const parametro = {
+              id: id,
+              temp_ideal: parseFloat(colunas[1].textContent),
+              umid_ideal: parseFloat(colunas[2].textContent),
+              pressao_ideal:
+                colunas[3].textContent !== "-"
+                  ? parseFloat(colunas[3].textContent)
+                  : "",
+              lumens:
+                colunas[4].textContent !== "-"
+                  ? parseFloat(colunas[4].textContent)
+                  : "",
+              id_sala:
+                colunas[5].textContent !== "-"
+                  ? parseInt(colunas[5].textContent)
+                  : "",
+              estagio_ovo:
+                colunas[6].textContent !== "-" ? colunas[6].textContent : "",
+              empresa: document.getElementById("empresaSelect").value,
+              lote: document.getElementById("loteSelect").value,
+            };
+
+            preencherFormularioEdicao(parametro);
+            return;
+          }
+        }
+      }
+
+      showError("Parâmetro não encontrado para edição");
+    } catch (error) {
+      console.error("Erro ao buscar parâmetro:", error);
+      showError("Erro ao carregar dados para edição");
+    }
+  }
+
+  function preencherFormularioEdicao(parametro) {
+    // Esconder seções de busca e lista
+    const filtersSection = document.querySelector(".parametro-filters");
+    const parametrosEncontrados = document.getElementById(
+      "parametrosEncontrados"
+    );
+    const parametroForm = document.getElementById("parametroForm");
+
+    if (filtersSection) filtersSection.style.display = "none";
+    if (parametrosEncontrados) parametrosEncontrados.style.display = "none";
+    if (parametroForm) parametroForm.style.display = "block";
+
+    // Preencher o formulário com os dados do parâmetro
+    const form = parametroForm;
+    form.querySelector("[name='id']").value = parametro.id;
+    form.querySelector("[name='empresa']").value = parametro.empresa;
+    form.querySelector("[name='lote']").value = parametro.lote;
+    form.querySelector("[name='temp_ideal']").value = parametro.temp_ideal;
+    form.querySelector("[name='umid_ideal']").value = parametro.umid_ideal;
+    form.querySelector("[name='pressao_ideal']").value =
+      parametro.pressao_ideal || "";
+    form.querySelector("[name='lumens']").value = parametro.lumens || "";
+    form.querySelector("[name='id_sala']").value = parametro.id_sala || "";
+    form.querySelector("[name='estagio_ovo']").value =
+      parametro.estagio_ovo || "";
+
+    // Focar no primeiro campo
+    form.querySelector("[name='empresa']").focus();
   }
 
   async function carregarEmpresas() {
@@ -928,9 +1011,29 @@
 
       if (response.ok) {
         showMessage("Parâmetros salvos com sucesso!", "success");
-        setTimeout(() => {
-          document.getElementById("parametroModal").style.display = "none";
-        }, 1500);
+
+        // Se foi uma edição, voltar para a lista de parâmetros
+        if (data.id) {
+          setTimeout(async () => {
+            // Voltar para a lista de parâmetros
+            const filtersSection = document.querySelector(".parametro-filters");
+            const parametrosEncontrados = document.getElementById(
+              "parametrosEncontrados"
+            );
+            const parametroForm = document.getElementById("parametroForm");
+
+            if (filtersSection) filtersSection.style.display = "block";
+            if (parametroForm) parametroForm.style.display = "none";
+
+            // Buscar parâmetros atualizados
+            await buscarParametros();
+          }, 1500);
+        } else {
+          // Se foi criação nova, fechar modal
+          setTimeout(() => {
+            document.getElementById("parametroModal").style.display = "none";
+          }, 1500);
+        }
       } else {
         const err = await response.json();
         showError("Erro: " + err.message);
