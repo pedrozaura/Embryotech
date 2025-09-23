@@ -1,0 +1,104 @@
+{% extends "base.html" %} {% block title %}Embryotech - Login{% endblock %} {%
+block content %}
+<div class="login-container">
+  <h1>
+    <img
+      src="{{ url_for('static', filename='images/logo-icon.png') }}"
+      alt="Ícone"
+      class="logo-icon"
+    />
+    OUTSIDE<br /><span>EMBRYOTECH</span>
+  </h1>
+
+  {% if logout_success %}
+  <div class="logout-message" style="display: block">
+    Você saiu do sistema com sucesso.
+  </div>
+  {% endif %}
+
+  <form id="loginForm">
+    <div class="form-group">
+      <label for="username">Usuário</label>
+      <input type="text" id="username" name="username" required />
+    </div>
+
+    <div class="form-group">
+      <label for="password">Senha</label>
+      <input type="password" id="password" name="password" required />
+    </div>
+
+    <button type="submit">LOGIN</button>
+  </form>
+
+  <div class="login-footer">Outside Agrotech 2025</div>
+</div>
+{% endblock %} {% block scripts %} {{ super() }}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const loginForm = document.getElementById("loginForm");
+
+    // Se já tiver token, redireciona para dashboard
+    if (localStorage.getItem("embryotech_token")) {
+      window.location.href = "{{ url_for('dashboard') }}";
+      return;
+    }
+
+    loginForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value.trim();
+      const submitBtn = loginForm.querySelector('button[type="submit"]');
+
+      if (!username || !password) {
+        showError("Por favor, preencha todos os campos.", true);
+        return;
+      }
+
+      const originalBtnText = submitBtn.textContent;
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Autenticando...";
+
+      try {
+        const response = await fetch("{{ url_for('api_login') }}", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password }),
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          localStorage.setItem("embryotech_token", data.token);
+          window.location.href = "{{ url_for('dashboard') }}";
+        } else {
+          handleLoginError(response.status);
+        }
+      } catch (error) {
+        showError(
+          "Não foi possível conectar ao servidor. Verifique sua conexão.",
+          true
+        );
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalBtnText;
+      }
+    });
+
+    function handleLoginError(status) {
+      switch (status) {
+        case 400:
+          showError("Nome de usuário e senha são obrigatórios", true);
+          break;
+        case 401:
+          showError("Usuário ou senha incorretos", true);
+          break;
+        case 500:
+          showError("Problema no servidor. Tente novamente mais tarde.", true);
+          break;
+        default:
+          showError("Erro ao fazer login", true);
+      }
+    }
+  });
+</script>
+{% endblock %}

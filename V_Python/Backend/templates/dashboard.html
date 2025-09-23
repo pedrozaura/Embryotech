@@ -1,0 +1,1466 @@
+{% extends "base.html" %} {% block title %}Embryotech - Dashboard{% endblock %}
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %} {% block content %}
+<header>
+  <div class="header-content">
+    <img
+      src="{{ url_for('static', filename='images/logo-icon.png') }}"
+      alt="Logo Embryotech"
+      class="header-logo"
+    />
+    <h1>Dashboard Embryotech</h1>
+  </div>
+  <button id="logoutBtn">Sair</button>
+</header>
+
+<main>
+  <section class="last-reading">
+    <h2>Última Leitura</h2>
+    <div id="lastReadingContainer" class="reading-card">
+      <p>Carregando última leitura...</p>
+    </div>
+  </section>
+
+  <!-- Botões: Histórico e Parâmetros -->
+  <div class="button-group">
+    <button id="showHistoryBtn">Histórico</button>
+    <button id="btnParametros" style="display: none">
+      Gerenciar Parâmetros
+    </button>
+    <button id="btnRelatorios" style="display: none">Relatórios</button>
+    <button id="btnUsuarios" style="display: none">Gerenciar Usuários</button>
+  </div>
+
+  <section class="charts-section">
+    <h2>Análise Gráfica</h2>
+    <div class="chart-container">
+      <div class="lote-selector">
+        <label for="loteFilter">Selecione o Lote:</label>
+        <select id="loteFilter" class="form-control">
+          <option value="">Todos os Lotes</option>
+          <!-- Opções serão preenchidas via JavaScript -->
+        </select>
+      </div>
+      <h3 id="loteLabel">Lote: Carregando...</h3>
+      <div class="chart-row">
+        <div class="chart-wrapper">
+          <h4>Temperatura (°C)</h4>
+          <canvas id="tempChart"></canvas>
+        </div>
+        <div class="chart-wrapper">
+          <h4>Umidade (%)</h4>
+          <canvas id="umidChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-row">
+        <div class="chart-wrapper">
+          <h4>Pressão (hPa)</h4>
+          <canvas id="pressChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- Modal de Histórico -->
+<div id="customModal" class="custom-modal">
+  <div class="custom-modal-content">
+    <div class="custom-modal-header">
+      <h3>Histórico de Leituras</h3>
+      <span class="custom-close-btn">&times;</span>
+    </div>
+    <div class="custom-modal-body" id="readingsListContainer">
+      <!-- Conteúdo será inserido via JavaScript -->
+    </div>
+    <div class="custom-modal-footer">
+      <div id="readingsCount" class="modal-footer-left"></div>
+      <button class="custom-close-btn">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de Parâmetros -->
+<div id="parametroModal" class="custom-modal">
+  <div class="custom-modal-content">
+    <div class="custom-modal-header">
+      <h3>Gerenciar Parâmetros</h3>
+      <span class="custom-close-btn">&times;</span>
+    </div>
+    <div class="custom-modal-body">
+      <div class="parametro-filters">
+        <div class="form-group">
+          <label>Empresa:</label>
+          <select id="empresaSelect" class="form-control">
+            <option value="">Selecione uma empresa</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Lote:</label>
+          <select id="loteSelect" class="form-control" disabled>
+            <option value="">Selecione um lote</option>
+          </select>
+        </div>
+        <div class="button-group">
+          <button id="btnBuscarParametros" class="custom-save-btn">
+            Buscar Parâmetros
+          </button>
+          <button id="btnNovoParametro" class="custom-save-btn">
+            Novo Parâmetro
+          </button>
+          <button id="btnFecharParametros" class="custom-close-btn">
+            Fechar
+          </button>
+        </div>
+      </div>
+
+      <form id="parametroForm" style="display: none">
+        <input type="hidden" name="id" />
+
+        <div class="form-group">
+          <label>Empresa *</label>
+          <input type="text" name="empresa" required />
+        </div>
+
+        <div class="form-group">
+          <label>Lote *</label>
+          <input type="text" name="lote" required />
+        </div>
+
+        <div class="form-group">
+          <label>Temperatura Ideal (°C) *</label>
+          <input type="number" step="0.1" name="temp_ideal" required />
+        </div>
+
+        <div class="form-group">
+          <label>Umidade Ideal (%) *</label>
+          <input type="number" step="0.1" name="umid_ideal" required />
+        </div>
+
+        <div class="form-group">
+          <label>Pressão Ideal (hPa) *</label>
+          <input type="number" step="0.1" name="pressao_ideal" />
+        </div>
+
+        <div class="form-group">
+          <label>Lumens *</label>
+          <input type="number" step="1" name="lumens" />
+        </div>
+
+        <div class="form-group">
+          <label>ID da Sala *</label>
+          <input type="number" name="id_sala" />
+        </div>
+
+        <div class="form-group">
+          <label>Estágio do Ovo</label>
+          <input type="number" name="estagio_ovo" />
+        </div>
+
+        <div class="button-group">
+          <button type="submit" class="custom-save-btn">Salvar</button>
+          <button type="button" id="btnCancelar" class="custom-close-btn">
+            Cancelar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de Relatórios -->
+<div id="relatoriosModal" class="custom-modal">
+  <div class="custom-modal-content">
+    <div class="custom-modal-header">
+      <h3>Relatórios do Sistema</h3>
+      <span class="custom-close-btn">&times;</span>
+    </div>
+    <div class="custom-modal-body">
+      <div class="relatorios-menu">
+        <div class="relatorio-card" onclick="abrirRelatorioAuditoria()">
+          <h4>📊 Auditoria de Acessos</h4>
+          <p>Visualizar logs de acesso por usuário, data e hora</p>
+        </div>
+        <div class="relatorio-card" onclick="abrirRelatorioLeituras()">
+          <h4>📈 Relatório de Leituras</h4>
+          <p>Filtrar leituras por lote e período</p>
+        </div>
+        <div class="relatorio-card" onclick="abrirRelatorioUsuarios()">
+          <h4>👥 Relatório de Usuários</h4>
+          <p>Lista completa de usuários do sistema</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de Auditoria -->
+<div id="auditoriaModal" class="custom-modal">
+  <div class="custom-modal-content">
+    <div class="custom-modal-header">
+      <h3>Auditoria de Acessos</h3>
+      <span class="custom-close-btn">&times;</span>
+    </div>
+    <div class="custom-modal-body">
+      <div class="filtros-auditoria">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Usuário:</label>
+            <select id="filtroUsuario" class="form-control">
+              <option value="">Todos os usuários</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Data Início:</label>
+            <input type="date" id="dataInicio" class="form-control" />
+          </div>
+          <div class="form-group">
+            <label>Data Fim:</label>
+            <input type="date" id="dataFim" class="form-control" />
+          </div>
+        </div>
+        <div class="button-group">
+          <button onclick="buscarAuditoria()" class="custom-save-btn">
+            Buscar
+          </button>
+          <button onclick="exportarAuditoriaPDF()" class="custom-save-btn">
+            Exportar PDF
+          </button>
+        </div>
+      </div>
+
+      <div id="resultadosAuditoria" class="resultados-relatorio">
+        <!-- Resultados serão carregados aqui -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de Relatório de Leituras -->
+<div id="leiturasRelatorioModal" class="custom-modal">
+  <div class="custom-modal-content">
+    <div class="custom-modal-header">
+      <h3>Relatório de Leituras</h3>
+      <span class="custom-close-btn">&times;</span>
+    </div>
+    <div class="custom-modal-body">
+      <div class="filtros-leituras">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Lote:</label>
+            <select id="filtroLoteRelatorio" class="form-control">
+              <option value="">Todos os lotes</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Data Início:</label>
+            <input type="date" id="dataInicioLeituras" class="form-control" />
+          </div>
+          <div class="form-group">
+            <label>Data Fim:</label>
+            <input type="date" id="dataFimLeituras" class="form-control" />
+          </div>
+        </div>
+        <div class="button-group">
+          <button onclick="buscarRelatorioLeituras()" class="custom-save-btn">
+            Buscar
+          </button>
+          <button onclick="exportarLeiturasPDF()" class="custom-save-btn">
+            Exportar PDF
+          </button>
+        </div>
+      </div>
+
+      <div id="resultadosLeituras" class="resultados-relatorio">
+        <!-- Resultados serão carregados aqui -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de Gerenciamento de Usuários -->
+<div id="usuariosModal" class="custom-modal">
+  <div class="custom-modal-content">
+    <div class="custom-modal-header">
+      <h3>Gerenciar Usuários</h3>
+      <span class="custom-close-btn">&times;</span>
+    </div>
+    <div class="custom-modal-body">
+      <div class="usuarios-lista">
+        <h4>Lista de Usuários</h4>
+        <div id="tabelaUsuarios">
+          <!-- Tabela será carregada via JavaScript -->
+        </div>
+
+        <div class="button-group" style="margin-top: 20px">
+          <button
+            onclick="abrirFormularioAlterarSenha()"
+            class="custom-save-btn"
+          >
+            Alterar Senha de Usuário
+          </button>
+        </div>
+      </div>
+
+      <!-- Formulário de alteração de senha -->
+      <div
+        id="formAlterarSenha"
+        style="
+          display: none;
+          margin-top: 30px;
+          border-top: 1px solid #eee;
+          padding-top: 20px;
+        "
+      >
+        <h4>Alterar Senha do Usuário</h4>
+        <form id="alterarSenhaForm">
+          <div class="form-group">
+            <label>Usuário:</label>
+            <select id="selectUsuarioSenha" class="form-control" required>
+              <option value="">Selecione um usuário</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Nova Senha:</label>
+            <input
+              type="password"
+              id="novaSenha"
+              class="form-control"
+              required
+              minlength="6"
+            />
+          </div>
+
+          <div class="form-group">
+            <label>Confirmar Nova Senha:</label>
+            <input
+              type="password"
+              id="confirmarSenha"
+              class="form-control"
+              required
+              minlength="6"
+            />
+          </div>
+
+          <div class="button-group">
+            <button type="submit" class="custom-save-btn">Alterar Senha</button>
+            <button
+              type="button"
+              onclick="cancelarAlteracaoSenha()"
+              class="custom-close-btn"
+            >
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %} {% block scripts %} {{ super() }}
+<script>
+  // Variáveis globais
+  let IS_ADMIN = false;
+  let tempChart, umidChart, pressChart;
+  let USER_DATA = null;
+
+  // Função para verificar se é admin via token
+  function parseJwt(token) {
+    try {
+      return JSON.parse(atob(token.split(".")[1]));
+    } catch (e) {
+      console.error("Erro ao fazer parse do JWT:", e);
+      return null;
+    }
+  }
+
+  // DEBUG: Função para verificar usuário no banco via API
+  async function verificarUsuarioAdmin() {
+    try {
+      const token = localStorage.getItem("embryotech_token");
+      const response = await fetch("/api/usuarios", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const usuarios = await response.json();
+        // Pegar dados do usuário atual baseado no token
+        const payload = parseJwt(token);
+        if (payload) {
+          const usuarioAtual = usuarios.find((u) => u.id === payload.id);
+          if (usuarioAtual) {
+            console.log("Usuário atual encontrado:", usuarioAtual);
+            return usuarioAtual.is_admin;
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Erro ao verificar usuário admin:", error);
+    }
+    return false;
+  }
+
+  // Inicialização quando a página carrega
+  document.addEventListener("DOMContentLoaded", async function () {
+    const token = localStorage.getItem("embryotech_token");
+    if (!token) {
+      handleLogout();
+      return;
+    }
+
+    // Verificar se é admin através do token
+    const payload = parseJwt(token);
+    console.log("Payload do token:", payload);
+
+    if (payload) {
+      IS_ADMIN = payload.is_admin === true;
+      console.log("IS_ADMIN pelo token:", IS_ADMIN);
+    }
+
+    // DOUBLE CHECK: Verificar também via API se necessário
+    if (!IS_ADMIN) {
+      IS_ADMIN = await verificarUsuarioAdmin();
+      console.log("IS_ADMIN verificado via API:", IS_ADMIN);
+    }
+
+    setupDashboard();
+  });
+
+  function setupDashboard() {
+    setupEventListeners();
+    setupCharts();
+    setupAdminControls();
+    initLoteFilter();
+    fetchReadings();
+  }
+
+  function setupAdminControls() {
+    const btnParametros = document.getElementById("btnParametros");
+    const btnRelatorios = document.getElementById("btnRelatorios");
+    const btnUsuarios = document.getElementById("btnUsuarios");
+
+    console.log("=== DEBUG ADMIN CONTROLS ===");
+    console.log("IS_ADMIN:", IS_ADMIN);
+    console.log("btnParametros encontrado:", !!btnParametros);
+    console.log("btnRelatorios encontrado:", !!btnRelatorios);
+    console.log("btnUsuarios encontrado:", !!btnUsuarios);
+
+    if (IS_ADMIN) {
+      console.log("Configurando controles de admin...");
+
+      // Configurar botão Parâmetros
+      if (btnParametros) {
+        btnParametros.style.display = "inline-block";
+        btnParametros.onclick = function (e) {
+          e.preventDefault();
+          console.log("Clique em Parâmetros - abrindo modal");
+          abrirModalParametros();
+        };
+        console.log("Botão Parâmetros configurado");
+      } else {
+        console.error("Botão btnParametros não encontrado!");
+      }
+
+      // Configurar botão Relatórios
+      if (btnRelatorios) {
+        btnRelatorios.style.display = "inline-block";
+        btnRelatorios.onclick = function (e) {
+          e.preventDefault();
+          console.log("Clique em Relatórios - abrindo modal");
+          abrirModalRelatorios();
+        };
+        console.log("Botão Relatórios configurado");
+      } else {
+        console.error("Botão btnRelatorios não encontrado!");
+      }
+
+      // Configurar botão Usuários
+      if (btnUsuarios) {
+        btnUsuarios.style.display = "inline-block";
+        btnUsuarios.onclick = function (e) {
+          e.preventDefault();
+          console.log("Clique em Usuários - abrindo modal");
+          abrirModalUsuarios();
+        };
+        console.log("Botão Usuários configurado");
+      } else {
+        console.error("Botão btnUsuarios não encontrado!");
+      }
+
+      // Configurar modais
+      setTimeout(() => {
+        setupParametroModal();
+        setupRelatoriosModal();
+        setupUsuariosModal();
+        console.log("Modais configurados");
+      }, 100);
+    } else {
+      console.log("Usuário não é admin - ocultando botões");
+      if (btnParametros) btnParametros.style.display = "none";
+      if (btnRelatorios) btnRelatorios.style.display = "none";
+      if (btnUsuarios) btnUsuarios.style.display = "none";
+    }
+    console.log("=== FIM DEBUG ADMIN CONTROLS ===");
+  }
+
+  function setupEventListeners() {
+    const logoutBtn = document.getElementById("logoutBtn");
+    const showHistoryBtn = document.getElementById("showHistoryBtn");
+
+    if (logoutBtn) logoutBtn.addEventListener("click", handleLogout);
+    if (showHistoryBtn)
+      showHistoryBtn.addEventListener("click", showHistoryModal);
+  }
+
+  function setupCharts() {
+    tempChart = new Chart(document.getElementById("tempChart"), {
+      type: "line",
+      data: { labels: [], datasets: [] },
+      options: { responsive: true, maintainAspectRatio: false },
+    });
+
+    umidChart = new Chart(document.getElementById("umidChart"), {
+      type: "line",
+      data: { labels: [], datasets: [] },
+      options: { responsive: true, maintainAspectRatio: false },
+    });
+
+    pressChart = new Chart(document.getElementById("pressChart"), {
+      type: "line",
+      data: { labels: [], datasets: [] },
+      options: { responsive: true, maintainAspectRatio: false },
+    });
+  }
+
+  async function handleLogout() {
+    const logoutBtn = document.getElementById("logoutBtn");
+    if (logoutBtn) {
+      logoutBtn.textContent = "Saindo...";
+      logoutBtn.disabled = true;
+    }
+
+    try {
+      const token = localStorage.getItem("embryotech_token");
+      if (token) {
+        await fetch("{{ url_for('api_logout') }}", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      }
+    } catch (error) {
+      console.log("Erro ao registrar logout:", error);
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    localStorage.removeItem("embryotech_token");
+    window.location.href = "{{ url_for('login') }}?logout=success";
+  }
+
+  // === FUNÇÕES DE MODAL BASE ===
+
+  function setupModalCloseEvents(modal) {
+    if (!modal) return;
+
+    const closeButtons = modal.querySelectorAll(".custom-close-btn");
+    closeButtons.forEach((btn) => {
+      btn.onclick = function () {
+        modal.style.display = "none";
+      };
+    });
+
+    modal.onclick = function (e) {
+      if (e.target === modal) {
+        modal.style.display = "none";
+      }
+    };
+  }
+
+  // === FUNÇÕES DE PARÂMETROS ===
+
+  function abrirModalParametros() {
+    console.log("Função abrirModalParametros chamada");
+    const modal = document.getElementById("parametroModal");
+    if (modal) {
+      console.log("Modal encontrado, abrindo...");
+      modal.style.display = "flex";
+      setupModalCloseEvents(modal);
+      carregarEmpresas();
+
+      // Reset estados
+      const filtersSection = document.querySelector(".parametro-filters");
+      const parametroForm = document.getElementById("parametroForm");
+      if (filtersSection) filtersSection.style.display = "block";
+      if (parametroForm) parametroForm.style.display = "none";
+    } else {
+      console.error("Modal parametroModal não encontrado!");
+    }
+  }
+
+  function setupParametroModal() {
+    console.log("Setup parametro modal iniciado");
+
+    // Configurar eventos dos botões do modal
+    const btnFechar = document.getElementById("btnFecharParametros");
+    const btnNovo = document.getElementById("btnNovoParametro");
+    const btnBuscar = document.getElementById("btnBuscarParametros");
+    const btnCancelar = document.getElementById("btnCancelar");
+    const empresaSelect = document.getElementById("empresaSelect");
+    const parametroForm = document.getElementById("parametroForm");
+
+    if (btnFechar) {
+      btnFechar.onclick = function () {
+        document.getElementById("parametroModal").style.display = "none";
+      };
+    }
+
+    if (btnNovo) {
+      btnNovo.onclick = function () {
+        const filtersSection = document.querySelector(".parametro-filters");
+        if (filtersSection) filtersSection.style.display = "none";
+        if (parametroForm) parametroForm.style.display = "block";
+
+        parametroForm.reset();
+        parametroForm.querySelector("[name='id']").value = "";
+      };
+    }
+
+    if (btnCancelar) {
+      btnCancelar.onclick = function () {
+        const filtersSection = document.querySelector(".parametro-filters");
+        if (filtersSection) filtersSection.style.display = "block";
+        if (parametroForm) parametroForm.style.display = "none";
+      };
+    }
+
+    if (empresaSelect) {
+      empresaSelect.onchange = async function (e) {
+        if (e.target.value) {
+          await carregarLotes(e.target.value);
+        } else {
+          document.getElementById("loteSelect").innerHTML =
+            '<option value="">Selecione um lote</option>';
+          document.getElementById("loteSelect").disabled = true;
+        }
+      };
+    }
+
+    if (parametroForm) {
+      parametroForm.onsubmit = async function (e) {
+        e.preventDefault();
+        await salvarParametro(e);
+      };
+    }
+
+    console.log("Setup parametro modal concluído");
+  }
+
+  async function carregarEmpresas() {
+    try {
+      const token = localStorage.getItem("embryotech_token");
+      const response = await fetch("/api/empresas", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const empresas = await response.json();
+        const select = document.getElementById("empresaSelect");
+        select.innerHTML = '<option value="">Selecione uma empresa</option>';
+
+        empresas.forEach((empresa) => {
+          const option = document.createElement("option");
+          option.value = empresa;
+          option.textContent = empresa;
+          select.appendChild(option);
+        });
+      }
+    } catch (error) {
+      console.error("Erro ao carregar empresas:", error);
+      showError("Erro ao carregar lista de empresas");
+    }
+  }
+
+  async function carregarLotes(empresa) {
+    try {
+      const token = localStorage.getItem("embryotech_token");
+      const response = await fetch(
+        `/api/lotes?empresa=${encodeURIComponent(empresa)}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (response.ok) {
+        const lotes = await response.json();
+        const select = document.getElementById("loteSelect");
+        select.innerHTML = '<option value="">Selecione um lote</option>';
+        select.disabled = false;
+
+        lotes.forEach((lote) => {
+          const option = document.createElement("option");
+          option.value = lote;
+          option.textContent = lote;
+          select.appendChild(option);
+        });
+      }
+    } catch (error) {
+      console.error("Erro ao carregar lotes:", error);
+      showError("Erro ao carregar lista de lotes");
+    }
+  }
+
+  async function salvarParametro(e) {
+    const parametroForm = document.getElementById("parametroForm");
+    const data = Object.fromEntries(new FormData(parametroForm).entries());
+
+    // Validação
+    if (!data.empresa || !data.lote || !data.temp_ideal || !data.umid_ideal) {
+      showError("Campos obrigatórios faltando");
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem("embryotech_token");
+      const method = data.id ? "PUT" : "POST";
+      const url = data.id ? `/api/parametros/${data.id}` : `/api/parametros`;
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          empresa: data.empresa,
+          lote: data.lote,
+          temp_ideal: parseFloat(data.temp_ideal),
+          umid_ideal: parseFloat(data.umid_ideal),
+          pressao_ideal: data.pressao_ideal
+            ? parseFloat(data.pressao_ideal)
+            : null,
+          lumens: data.lumens ? parseFloat(data.lumens) : null,
+          id_sala: data.id_sala ? parseInt(data.id_sala) : null,
+          estagio_ovo: data.estagio_ovo || null,
+        }),
+      });
+
+      if (response.ok) {
+        showMessage("Parâmetros salvos com sucesso!", "success");
+        setTimeout(() => {
+          document.getElementById("parametroModal").style.display = "none";
+        }, 1500);
+      } else {
+        const err = await response.json();
+        showError("Erro: " + err.message);
+      }
+    } catch (error) {
+      showError("Erro ao salvar parâmetros: " + error.message);
+    }
+  }
+
+  // === FUNÇÕES DE RELATÓRIOS ===
+
+  function abrirModalRelatorios() {
+    console.log("Função abrirModalRelatorios chamada");
+    const modal = document.getElementById("relatoriosModal");
+    if (modal) {
+      console.log("Modal relatórios encontrado, abrindo...");
+      modal.style.display = "flex";
+      setupModalCloseEvents(modal);
+    } else {
+      console.error("Modal relatoriosModal não encontrado!");
+    }
+  }
+
+  function setupRelatoriosModal() {
+    setupModalCloseEvents(document.getElementById("relatoriosModal"));
+    setupModalCloseEvents(document.getElementById("auditoriaModal"));
+    setupModalCloseEvents(document.getElementById("leiturasRelatorioModal"));
+  }
+
+  function abrirRelatorioAuditoria() {
+    document.getElementById("relatoriosModal").style.display = "none";
+    const modal = document.getElementById("auditoriaModal");
+    if (modal) {
+      modal.style.display = "flex";
+      setupModalCloseEvents(modal);
+      carregarUsuariosAuditoria();
+      definirDatasAuditoria();
+    }
+  }
+
+  function abrirRelatorioLeituras() {
+    document.getElementById("relatoriosModal").style.display = "none";
+    const modal = document.getElementById("leiturasRelatorioModal");
+    if (modal) {
+      modal.style.display = "flex";
+      setupModalCloseEvents(modal);
+      carregarLotesRelatorio();
+      definirDatasLeituras();
+    }
+  }
+
+  function abrirRelatorioUsuarios() {
+    showMessage("Funcionalidade em desenvolvimento", "success");
+  }
+
+  async function carregarUsuariosAuditoria() {
+    try {
+      const token = localStorage.getItem("embryotech_token");
+      const response = await fetch("/api/usuarios", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const usuarios = await response.json();
+        const select = document.getElementById("filtroUsuario");
+        select.innerHTML = '<option value="">Todos os usuários</option>';
+
+        usuarios.forEach((usuario) => {
+          const option = document.createElement("option");
+          option.value = usuario.id;
+          option.textContent = usuario.username;
+          select.appendChild(option);
+        });
+      }
+    } catch (error) {
+      console.error("Erro ao carregar usuários:", error);
+    }
+  }
+
+  async function carregarLotesRelatorio() {
+    try {
+      const token = localStorage.getItem("embryotech_token");
+      const response = await fetch("/api/lotes", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const lotes = await response.json();
+        const select = document.getElementById("filtroLoteRelatorio");
+        select.innerHTML = '<option value="">Todos os lotes</option>';
+
+        lotes.forEach((lote) => {
+          const option = document.createElement("option");
+          option.value = lote;
+          option.textContent = lote;
+          select.appendChild(option);
+        });
+      }
+    } catch (error) {
+      console.error("Erro ao carregar lotes:", error);
+    }
+  }
+
+  function definirDatasAuditoria() {
+    const hoje = new Date();
+    const umaSemanaAtras = new Date(hoje);
+    umaSemanaAtras.setDate(hoje.getDate() - 7);
+
+    document.getElementById("dataInicio").value = umaSemanaAtras
+      .toISOString()
+      .split("T")[0];
+    document.getElementById("dataFim").value = hoje.toISOString().split("T")[0];
+  }
+
+  function definirDatasLeituras() {
+    const hoje = new Date();
+    const umMesAtras = new Date(hoje);
+    umMesAtras.setMonth(hoje.getMonth() - 1);
+
+    document.getElementById("dataInicioLeituras").value = umMesAtras
+      .toISOString()
+      .split("T")[0];
+    document.getElementById("dataFimLeituras").value = hoje
+      .toISOString()
+      .split("T")[0];
+  }
+
+  async function buscarAuditoria() {
+    const usuarioId = document.getElementById("filtroUsuario").value;
+    const dataInicio = document.getElementById("dataInicio").value;
+    const dataFim = document.getElementById("dataFim").value;
+
+    try {
+      const token = localStorage.getItem("embryotech_token");
+      let url = "/api/logs?limite=200";
+
+      if (usuarioId) url += `&usuario_id=${usuarioId}`;
+      if (dataInicio) url += `&data_inicio=${dataInicio}`;
+      if (dataFim) url += `&data_fim=${dataFim}`;
+
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const logs = await response.json();
+        exibirResultadosAuditoria(logs);
+      } else {
+        showError("Erro ao buscar dados de auditoria");
+      }
+    } catch (error) {
+      console.error("Erro na busca de auditoria:", error);
+      showError("Erro ao buscar dados de auditoria");
+    }
+  }
+
+  function exibirResultadosAuditoria(logs) {
+    const container = document.getElementById("resultadosAuditoria");
+
+    if (!logs || logs.length === 0) {
+      container.innerHTML =
+        '<div class="empty-state"><p>Nenhum log encontrado para os filtros selecionados</p></div>';
+      return;
+    }
+
+    const html = `
+        <div class="relatorio-header">
+            <h4>Resultados da Auditoria (${logs.length} registros)</h4>
+        </div>
+        <div class="tabela-container">
+            <table class="tabela-relatorio">
+                <thead>
+                    <tr>
+                        <th>Data/Hora</th>
+                        <th>Usuário</th>
+                        <th>Ação</th>
+                        <th>IP</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${logs
+                      .map(
+                        (log) => `
+                        <tr>
+                            <td>${formatDate(log.data_hora)}</td>
+                            <td>${log.usuario_nome || "Anônimo"}</td>
+                            <td>${log.acao}</td>
+                            <td>${log.ip_address || "-"}</td>
+                            <td><span class="status-${
+                              log.status_code < 400 ? "sucesso" : "erro"
+                            }">${log.status_code}</span></td>
+                        </tr>
+                    `
+                      )
+                      .join("")}
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    container.innerHTML = html;
+  }
+
+  // === FUNÇÕES DE USUÁRIOS ===
+
+  function abrirModalUsuarios() {
+    console.log("Função abrirModalUsuarios chamada");
+    const modal = document.getElementById("usuariosModal");
+    if (modal) {
+      console.log("Modal usuários encontrado, abrindo...");
+      modal.style.display = "flex";
+      setupModalCloseEvents(modal);
+      carregarListaUsuarios();
+    } else {
+      console.error("Modal usuariosModal não encontrado!");
+    }
+  }
+
+  function setupUsuariosModal() {
+    const form = document.getElementById("alterarSenhaForm");
+    if (form) {
+      form.onsubmit = async function (e) {
+        e.preventDefault();
+        await alterarSenhaUsuario(e);
+      };
+    }
+  }
+
+  async function carregarListaUsuarios() {
+    try {
+      const token = localStorage.getItem("embryotech_token");
+      const response = await fetch("/api/usuarios", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const usuarios = await response.json();
+        exibirTabelaUsuarios(usuarios);
+        preencherSelectUsuarios(usuarios);
+      } else {
+        showError("Erro ao carregar usuários");
+      }
+    } catch (error) {
+      console.error("Erro ao carregar usuários:", error);
+      showError("Erro ao carregar usuários");
+    }
+  }
+
+  function exibirTabelaUsuarios(usuarios) {
+    const container = document.getElementById("tabelaUsuarios");
+
+    if (!usuarios || usuarios.length === 0) {
+      container.innerHTML = "<p>Nenhum usuário encontrado</p>";
+      return;
+    }
+
+    const html = `
+        <table class="tabela-relatorio">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nome de Usuário</th>
+                    <th>Email</th>
+                    <th>Admin</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${usuarios
+                  .map(
+                    (usuario) => `
+                    <tr>
+                        <td>${usuario.id}</td>
+                        <td>${usuario.username}</td>
+                        <td>${usuario.email}</td>
+                        <td>
+                            <span class="status-${
+                              usuario.is_admin ? "sucesso" : "neutro"
+                            }">
+                                ${usuario.is_admin ? "Sim" : "Não"}
+                            </span>
+                        </td>
+                        <td>
+                            <button onclick="toggleAdmin(${
+                              usuario.id
+                            }, ${!usuario.is_admin})" 
+                                    class="btn-pequeno ${
+                                      usuario.is_admin
+                                        ? "btn-remover"
+                                        : "btn-promover"
+                                    }">
+                                ${
+                                  usuario.is_admin
+                                    ? "Remover Admin"
+                                    : "Tornar Admin"
+                                }
+                            </button>
+                        </td>
+                    </tr>
+                `
+                  )
+                  .join("")}
+            </tbody>
+        </table>
+    `;
+
+    container.innerHTML = html;
+  }
+
+  function preencherSelectUsuarios(usuarios) {
+    const select = document.getElementById("selectUsuarioSenha");
+    if (!select) return;
+
+    select.innerHTML = '<option value="">Selecione um usuário</option>';
+    usuarios.forEach((usuario) => {
+      const option = document.createElement("option");
+      option.value = usuario.id;
+      option.textContent = `${usuario.username} (${usuario.email})`;
+      select.appendChild(option);
+    });
+  }
+
+  function abrirFormularioAlterarSenha() {
+    const form = document.getElementById("formAlterarSenha");
+    if (form) {
+      form.style.display = "block";
+      document.getElementById("selectUsuarioSenha").value = "";
+      document.getElementById("novaSenha").value = "";
+      document.getElementById("confirmarSenha").value = "";
+    }
+  }
+
+  function cancelarAlteracaoSenha() {
+    const form = document.getElementById("formAlterarSenha");
+    if (form) {
+      form.style.display = "none";
+    }
+  }
+
+  async function toggleAdmin(usuarioId, tornarAdmin) {
+    try {
+      const token = localStorage.getItem("embryotech_token");
+      const response = await fetch(`/api/usuarios/${usuarioId}/admin`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ is_admin: tornarAdmin }),
+      });
+
+      if (response.ok) {
+        showMessage(
+          tornarAdmin
+            ? "Usuário promovido a admin!"
+            : "Privilégios de admin removidos!",
+          "success"
+        );
+        carregarListaUsuarios();
+      } else {
+        const error = await response.json();
+        showError("Erro: " + error.message);
+      }
+    } catch (error) {
+      console.error("Erro ao alterar privilégios:", error);
+      showError("Erro ao alterar privilégios do usuário");
+    }
+  }
+
+  async function alterarSenhaUsuario(e) {
+    const usuarioId = document.getElementById("selectUsuarioSenha").value;
+    const novaSenha = document.getElementById("novaSenha").value;
+    const confirmarSenha = document.getElementById("confirmarSenha").value;
+
+    if (!usuarioId) {
+      showError("Selecione um usuário");
+      return;
+    }
+
+    if (novaSenha.length < 6) {
+      showError("A senha deve ter pelo menos 6 caracteres");
+      return;
+    }
+
+    if (novaSenha !== confirmarSenha) {
+      showError("As senhas não coincidem");
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem("embryotech_token");
+      const response = await fetch(`/api/usuarios/${usuarioId}/senha`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ nova_senha: novaSenha }),
+      });
+
+      if (response.ok) {
+        showMessage("Senha alterada com sucesso!", "success");
+        cancelarAlteracaoSenha();
+      } else {
+        const error = await response.json();
+        showError("Erro: " + error.message);
+      }
+    } catch (error) {
+      console.error("Erro ao alterar senha:", error);
+      showError("Erro ao alterar senha do usuário");
+    }
+  }
+
+  // === OUTRAS FUNÇÕES NECESSÁRIAS ===
+
+  async function fetchReadings(lote = "") {
+    try {
+      const token = localStorage.getItem("embryotech_token");
+      let url = "{{ url_for('api_listar_leituras') }}";
+
+      if (lote) {
+        url += `?lote=${encodeURIComponent(lote)}`;
+      }
+
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
+
+      let readings = await response.json();
+
+      readings = readings.map((r) => ({
+        ...r,
+        data_inicial: r.data_inicial ? new Date(r.data_inicial) : null,
+        data_final: r.data_final ? new Date(r.data_final) : null,
+      }));
+
+      readings.sort((a, b) => {
+        const dateA = a.data_inicial ? new Date(a.data_inicial) : new Date(0);
+        const dateB = b.data_inicial ? new Date(b.data_inicial) : new Date(0);
+        return dateB - dateA;
+      });
+
+      if (readings.length > 0) {
+        updateLastReading(readings[0]);
+        updateCharts([...readings].reverse());
+      } else {
+        updateLastReading(null);
+        updateCharts([]);
+      }
+    } catch (error) {
+      console.error("Erro ao buscar leituras:", error);
+      showError(`Erro ao carregar leituras: ${error.message}`);
+    }
+  }
+
+  async function initLoteFilter() {
+    try {
+      const token = localStorage.getItem("embryotech_token");
+      const response = await fetch("{{ url_for('api_get_lotes') }}", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) throw new Error("Erro ao carregar lotes");
+
+      const lotes = await response.json();
+      const loteFilter = document.getElementById("loteFilter");
+
+      loteFilter.innerHTML = '<option value="">Todos os Lotes</option>';
+      lotes.forEach((lote) => {
+        const option = document.createElement("option");
+        option.value = lote;
+        option.textContent = lote;
+        loteFilter.appendChild(option);
+      });
+
+      loteFilter.addEventListener("change", async () => {
+        const loteSelecionado = loteFilter.value;
+        const loteLabel = document.getElementById("loteLabel");
+        loteLabel.textContent = loteSelecionado
+          ? `Lote: ${loteSelecionado}`
+          : "Lote: Todos";
+        await fetchReadings(loteSelecionado);
+      });
+    } catch (error) {
+      console.error("Erro ao carregar lotes:", error);
+      showError("Erro ao carregar lista de lotes");
+    }
+  }
+
+  function updateLastReading(reading) {
+    const lastReadingContainer = document.getElementById(
+      "lastReadingContainer"
+    );
+    if (!lastReadingContainer) return;
+
+    if (!reading) {
+      lastReadingContainer.innerHTML = `
+            <div class="reading-data">
+                <p>Nenhuma leitura disponível para o lote selecionado</p>
+            </div>
+        `;
+      return;
+    }
+
+    lastReadingContainer.innerHTML = `
+        <div class="reading-data">
+            <p><strong>Data/Hora:</strong> ${formatDate(
+              reading.data_inicial
+            )}</p>
+            <p><strong>Temperatura:</strong> ${reading.temperatura} °C</p>
+            <p><strong>Umidade:</strong> ${reading.umidade} %</p>
+            <p><strong>Pressão:</strong> ${reading.pressao} hPa</p>
+            <p><strong>Lote:</strong> ${reading.lote || "N/A"}</p>
+        </div>
+    `;
+  }
+
+  function updateCharts(readings) {
+    readings.sort(
+      (a, b) => new Date(a.data_inicial) - new Date(b.data_inicial)
+    );
+    const labels = readings.map((r) => formatDate(r.data_inicial, true));
+    const temps = readings.map((r) => r.temperatura);
+    const umids = readings.map((r) => r.umidade);
+    const presses = readings.map((r) => r.pressao);
+
+    updateChart(
+      tempChart,
+      labels,
+      temps,
+      "Temperatura (°C)",
+      "rgba(255, 99, 132, 0.8)"
+    );
+    updateChart(
+      umidChart,
+      labels,
+      umids,
+      "Umidade (%)",
+      "rgba(54, 162, 235, 0.8)"
+    );
+    updateChart(
+      pressChart,
+      labels,
+      presses,
+      "Pressão (hPa)",
+      "rgba(3, 62, 253, 0.8)"
+    );
+  }
+
+  function updateChart(chart, labels, data, label, color) {
+    chart.data.labels = labels;
+    chart.data.datasets = [
+      {
+        label: label,
+        data: data,
+        borderColor: color,
+        backgroundColor: color.replace("0.8", "0.2"),
+        tension: 0.1,
+        fill: true,
+      },
+    ];
+    chart.update();
+  }
+
+  function showHistoryModal() {
+    const modal = document.getElementById("customModal");
+    const loteSelecionado = document.getElementById("loteFilter").value;
+
+    modal.style.display = "flex";
+
+    setTimeout(() => {
+      fetchHistoryReadings(loteSelecionado);
+    }, 50);
+
+    setupModalCloseEvents(modal);
+  }
+
+  async function fetchHistoryReadings(lote = "") {
+    try {
+      const token = localStorage.getItem("embryotech_token");
+      const container = document.getElementById("readingsListContainer");
+
+      if (!container) return;
+
+      container.innerHTML = "<p>Carregando histórico...</p>";
+
+      let url = "{{ url_for('api_listar_leituras') }}";
+      if (lote) {
+        url += `?lote=${encodeURIComponent(lote)}`;
+      }
+
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) throw new Error("Erro ao carregar histórico");
+
+      let readings = await response.json();
+      readings = readings.map((r) => ({
+        ...r,
+        data_inicial: r.data_inicial ? new Date(r.data_inicial) : null,
+        data_final: r.data_final ? new Date(r.data_final) : null,
+      }));
+
+      readings.sort(
+        (a, b) => new Date(b.data_inicial) - new Date(a.data_inicial)
+      );
+
+      updateReadingsList(readings);
+      updateReadingsCount(readings.length);
+    } catch (error) {
+      console.error("Erro em fetchHistoryReadings:", error);
+      const container = document.getElementById("readingsListContainer");
+      if (container) {
+        container.innerHTML = `<p class="error">Erro ao carregar histórico: ${error.message}</p>`;
+      }
+      showError("Erro ao carregar histórico de leituras");
+    }
+  }
+
+  function updateReadingsList(readings) {
+    const container = document.getElementById("readingsListContainer");
+    if (!container) return;
+
+    if (!readings || readings.length === 0) {
+      container.innerHTML = `
+            <div class="empty-state">
+                <p>Nenhuma leitura encontrada</p>
+            </div>
+        `;
+      return;
+    }
+
+    container.innerHTML = `
+        <div class="readings-grid">
+            ${readings
+              .map(
+                (reading) => `
+                <div class="reading-item">
+                    <p><strong>Data:</strong> ${formatDate(
+                      reading.data_inicial
+                    )}</p>
+                    <p><strong>Temperatura:</strong> ${
+                      reading.temperatura
+                    } °C</p>
+                    <p><strong>Umidade:</strong> ${reading.umidade} %</p>
+                    <p><strong>Pressão:</strong> ${reading.pressao} hPa</p>
+                    ${
+                      reading.lote
+                        ? `<p><strong>Lote:</strong> ${reading.lote}</p>`
+                        : ""
+                    }
+                </div>
+            `
+              )
+              .join("")}
+        </div>
+    `;
+  }
+
+  function updateReadingsCount(count) {
+    const countElement = document.getElementById("readingsCount");
+    if (countElement) {
+      countElement.innerHTML = `<strong>Total de leituras:</strong> ${count}`;
+    }
+  }
+
+  function formatDate(dateString, short = false) {
+    if (!dateString) return "N/A";
+
+    const date = new Date(dateString);
+    const options = {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    };
+
+    if (short) {
+      return `${date.toLocaleDateString("pt-BR")} ${date.toLocaleTimeString(
+        "pt-BR",
+        {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        }
+      )}`;
+    }
+
+    return date.toLocaleString("pt-BR", options);
+  }
+
+  // Funções de exportação PDF
+  async function exportarAuditoriaPDF() {
+    // Implementar exportação de auditoria
+    showMessage("Exportando PDF...", "success");
+  }
+
+  async function exportarLeiturasPDF() {
+    // Implementar exportação de leituras
+    showMessage("Exportando PDF...", "success");
+  }
+
+  async function buscarRelatorioLeituras() {
+    // Implementar busca de relatório de leituras
+    showMessage("Buscando relatório...", "success");
+  }
+</script>
+{% endblock %}

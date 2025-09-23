@@ -8,7 +8,6 @@ from functools import wraps
 from config import Config
 from flask_cors import CORS
 from extensions import db, migrate
-from flasgger import Swagger
 import secrets
 import os
 import json
@@ -46,38 +45,6 @@ app.config.from_object(Config)
 
 db.init_app(app)
 migrate.init_app(app, db)
-
-# Configuração do Swagger
-swagger_template = {
-    "swagger": "2.0",
-    "info": {
-        "title": "Embryotech API  --  Outside Agrotech",
-        "description": "API para gerenciamento de usuários, parâmetros e leituras de embriões",
-        "contact": {
-            "email": "pedro.zaura@outsideagro.tech"
-        },
-        "version": "1.0.1"
-    },
-    "basePath": "/",
-    "schemes": [
-        "http"
-    ],
-    "securityDefinitions": {
-        "Bearer": {
-            "type": "apiKey",
-            "name": "Authorization",
-            "in": "header",
-            "description": "JWT Authorization header using the Bearer scheme. Example: \"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\""
-        }
-    },
-    "security": [
-        {
-            "Bearer": []
-        }
-    ]
-}
-
-swagger = Swagger(app, template=swagger_template)
 
 # Middleware para logging automático
 @app.before_request
@@ -158,13 +125,7 @@ def dashboard():
 @app.route('/api/')
 @log_activity("API_STATUS_CHECK")
 def api_status():
-    """
-    Endpoint de status da API
-    ---
-    responses:
-      200:
-        description: Exibe mensagem de boas-vindas e data/hora do servidor
-    """
+    """Endpoint de status da API"""
     try:
         data_hora_db = db.session.execute(text("SELECT CURRENT_TIMESTAMP")).scalar()
         data_hora_ajustada = data_hora_db - timedelta(hours=3)
@@ -180,37 +141,7 @@ def api_status():
 @app.route('/api/register', methods=['POST'])
 @log_activity("USUARIO_REGISTRO")
 def api_register():
-    """
-    Registrar novo usuário
-    ---
-    tags:
-      - Autenticação
-    parameters:
-      - in: body
-        name: body
-        required: true
-        schema:
-          id: UserRegistration
-          required:
-            - username
-            - password
-            - email
-          properties:
-            username:
-              type: string
-              example: "usuario1"
-            password:
-              type: string
-              example: "senhasegura123"
-            email:
-              type: string
-              example: "usuario@email.com"
-    responses:
-      201:
-        description: Usuário registrado com sucesso
-      400:
-        description: Campos obrigatórios faltando ou usuário/email já existente
-    """
+    """Registrar novo usuário"""
     data = request.get_json()
     
     if not data or not data.get('username') or not data.get('password') or not data.get('email'):
@@ -240,40 +171,7 @@ def api_register():
 
 @app.route('/api/login', methods=['POST'])
 def api_login():
-    """
-    Login de usuário
-    ---
-    tags:
-      - Autenticação
-    parameters:
-      - in: body
-        name: body
-        required: true
-        schema:
-          id: UserLogin
-          required:
-            - username
-            - password
-          properties:
-            username:
-              type: string
-              example: "usuario1"
-            password:
-              type: string
-              example: "senhasegura123"
-    responses:
-      200:
-        description: Login bem-sucedido
-        schema:
-          properties:
-            token:
-              type: string
-              example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-      400:
-        description: Campos obrigatórios faltando
-      401:
-        description: Credenciais inválidas
-    """
+    """Login de usuário"""
     data = request.get_json()
     
     if not data or not data.get('username') or not data.get('password'):
@@ -295,17 +193,7 @@ def api_login():
 @token_required
 @log_activity("LOGOUT")
 def api_logout(current_user):
-    """
-    Logout de usuário
-    ---
-    tags:
-      - Autenticação
-    security:
-      - Bearer: []
-    responses:
-      200:
-        description: Logout realizado com sucesso
-    """
+    """Logout de usuário"""
     log_logout(current_user)
     return jsonify({'message': 'Logout realizado com sucesso'}), 200
 
@@ -313,9 +201,7 @@ def api_logout(current_user):
 @token_required
 @log_activity("CRIAR_LEITURAS")
 def api_criar_leitura(current_user):
-    """
-    Criar novas leituras de embrião (suporte a múltiplas leituras)
-    """
+    """Criar novas leituras de embrião (suporte a múltiplas leituras)"""
     try:
         if not request.is_json:
             return jsonify({'message': 'O corpo da requisição deve ser JSON'}), 400
@@ -356,9 +242,7 @@ def api_criar_leitura(current_user):
 @token_required
 @log_activity("LISTAR_LEITURAS")
 def api_listar_leituras(current_user):
-    """
-    Listar todas as leituras de embriões
-    """
+    """Listar todas as leituras de embriões"""
     lote = request.args.get('lote')
     
     query = Leitura.query
@@ -382,9 +266,7 @@ def api_listar_leituras(current_user):
 @token_required
 @log_activity("ATUALIZAR_LEITURA")
 def api_atualizar_leitura(current_user, leitura_id):
-    """
-    Atualizar uma leitura existente
-    """
+    """Atualizar uma leitura existente"""
     leitura = Leitura.query.get(leitura_id)
     if not leitura:
         return jsonify({'message': 'Leitura não encontrada'}), 404
@@ -415,9 +297,7 @@ def api_atualizar_leitura(current_user, leitura_id):
 @token_required
 @log_activity("DELETAR_LEITURA")
 def api_deletar_leitura(current_user, leitura_id):
-    """
-    Deletar uma leitura existente
-    """
+    """Deletar uma leitura existente"""
     leitura = Leitura.query.get(leitura_id)
     if not leitura:
         return jsonify({'message': 'Leitura não encontrada'}), 404
@@ -439,9 +319,7 @@ def api_deletar_leitura(current_user, leitura_id):
 @token_required
 @log_activity("CRIAR_PARAMETRO")
 def api_criar_parametro(current_user):
-    """
-    Criar novo conjunto de parâmetros ideais
-    """
+    """Criar novo conjunto de parâmetros ideais"""
     if not current_user.is_admin:
         log_crud_operation(current_user, 'parametros', 'CREATE_DENIED', dados={'motivo': 'nao_admin'})
         return jsonify({'message': 'Acesso negado!'}), 403
@@ -480,9 +358,7 @@ def api_criar_parametro(current_user):
 @token_required
 @log_activity("LISTAR_EMPRESAS")
 def api_get_empresas(current_user):
-    """
-    Obter lista de empresas cadastradas
-    """
+    """Obter lista de empresas cadastradas"""
     if not current_user.is_admin:
         return jsonify({'message': 'Acesso negado!'}), 403
     
@@ -493,9 +369,7 @@ def api_get_empresas(current_user):
 @token_required
 @log_activity("LISTAR_LOTES")
 def api_get_lotes(current_user):
-    """
-    Obter lista de todos os lotes (ou filtrado por empresa)
-    """
+    """Obter lista de todos os lotes (ou filtrado por empresa)"""
     empresa = request.args.get('empresa')
     
     query = db.session.query(Parametro.lote).distinct()
@@ -509,9 +383,7 @@ def api_get_lotes(current_user):
 @token_required
 @log_activity("BUSCAR_PARAMETROS")
 def api_get_parametros(current_user):
-    """
-    Buscar parâmetros por empresa e lote
-    """
+    """Buscar parâmetros por empresa e lote"""
     if not current_user.is_admin:
         return jsonify({'message': 'Acesso negado!'}), 403
 
@@ -529,9 +401,7 @@ def api_get_parametros(current_user):
 @token_required
 @log_activity("ATUALIZAR_PARAMETRO")
 def api_atualizar_parametro(current_user, id):
-    """
-    Atualizar parâmetros existentes
-    """
+    """Atualizar parâmetros existentes"""
     if not current_user.is_admin:
         return jsonify({'message': 'Acesso negado!'}), 403
 
@@ -577,9 +447,7 @@ def api_atualizar_parametro(current_user, id):
 @token_required
 @log_activity("CONSULTAR_LOGS")
 def api_get_logs(current_user):
-    """
-    Consultar logs do sistema (apenas para administradores)
-    """
+    """Consultar logs do sistema (apenas para administradores)"""
     if not current_user.is_admin:
         return jsonify({'message': 'Acesso negado!'}), 403
     
@@ -604,6 +472,350 @@ def api_get_logs(current_user):
     logs = query.order_by(Log.data_hora.desc()).limit(limite).all()
     
     return jsonify([log.to_dict() for log in logs]), 200
+
+@app.route('/api/usuarios', methods=['GET'])
+@token_required
+@log_activity("LISTAR_USUARIOS")
+def api_get_usuarios(current_user):
+    """Obter lista de usuários (apenas para administradores)"""
+    if not current_user.is_admin:
+        return jsonify({'message': 'Acesso negado!'}), 403
+    
+    usuarios = User.query.all()
+    return jsonify([{
+        'id': u.id,
+        'username': u.username,
+        'email': u.email,
+        'is_admin': u.is_admin
+    } for u in usuarios]), 200
+
+@app.route('/api/relatorio/leituras', methods=['GET'])
+@token_required
+@log_activity("RELATORIO_LEITURAS")
+def api_relatorio_leituras(current_user):
+    """Relatório de leituras com filtros"""
+    if not current_user.is_admin:
+        return jsonify({'message': 'Acesso negado!'}), 403
+    
+    lote = request.args.get('lote')
+    data_inicio = request.args.get('data_inicio')
+    data_fim = request.args.get('data_fim')
+    
+    query = Leitura.query
+    
+    if lote:
+        query = query.filter(Leitura.lote == lote)
+    if data_inicio:
+        query = query.filter(Leitura.data_inicial >= data_inicio)
+    if data_fim:
+        data_fim_obj = datetime.datetime.strptime(data_fim, '%Y-%m-%d')
+        data_fim_obj = data_fim_obj.replace(hour=23, minute=59, second=59)
+        query = query.filter(Leitura.data_inicial <= data_fim_obj)
+    
+    leituras = query.order_by(Leitura.data_inicial.desc()).all()
+    
+    return jsonify([{
+        'id': l.id,
+        'umidade': l.umidade,
+        'temperatura': l.temperatura,
+        'pressao': l.pressao,
+        'lote': l.lote,
+        'data_inicial': l.data_inicial.isoformat() if l.data_inicial else None,
+        'data_final': l.data_final.isoformat() if l.data_final else None
+    } for l in leituras]), 200
+
+@app.route('/api/relatorio/auditoria/pdf', methods=['GET'])
+@token_required
+@log_activity("EXPORTAR_AUDITORIA_PDF")
+def api_exportar_auditoria_pdf(current_user):
+    """Exportar relatório de auditoria em PDF"""
+    if not current_user.is_admin:
+        return jsonify({'message': 'Acesso negado!'}), 403
+    
+    try:
+        from reportlab.lib.pagesizes import A4, landscape
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib import colors
+        from reportlab.lib.units import cm
+        import io
+        
+        # Parâmetros de filtro
+        usuario_id = request.args.get('usuario_id', type=int)
+        data_inicio = request.args.get('data_inicio')
+        data_fim = request.args.get('data_fim')
+        
+        # Consultar logs
+        query = Log.query
+        if usuario_id:
+            query = query.filter(Log.usuario_id == usuario_id)
+        if data_inicio:
+            query = query.filter(Log.data_hora >= data_inicio)
+        if data_fim:
+            query = query.filter(Log.data_hora <= data_fim)
+        
+        logs = query.order_by(Log.data_hora.desc()).limit(500).all()
+        
+        # Criar PDF
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), rightMargin=cm, leftMargin=cm, 
+                               topMargin=cm, bottomMargin=cm)
+        
+        # Estilos
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            'TitleStyle',
+            parent=styles['Heading1'],
+            fontSize=16,
+            textColor=colors.HexColor('#25691b'),
+            alignment=1,  # Center
+            spaceAfter=20
+        )
+        
+        # Conteúdo do PDF
+        elements = []
+        
+        # Título
+        title = Paragraph("Relatório de Auditoria - Embryotech", title_style)
+        elements.append(title)
+        
+        # Informações do relatório
+        info_text = f"Gerado em: {datetime.datetime.now().strftime('%d/%m/%Y às %H:%M')}<br/>"
+        info_text += f"Total de registros: {len(logs)}<br/>"
+        if usuario_id:
+            usuario = User.query.get(usuario_id)
+            info_text += f"Filtrado por usuário: {usuario.username if usuario else 'N/A'}<br/>"
+        if data_inicio:
+            info_text += f"Data início: {data_inicio}<br/>"
+        if data_fim:
+            info_text += f"Data fim: {data_fim}<br/>"
+        
+        info_para = Paragraph(info_text, styles['Normal'])
+        elements.append(info_para)
+        elements.append(Spacer(1, 20))
+        
+        # Tabela de dados
+        if logs:
+            data = [['Data/Hora', 'Usuário', 'Ação', 'IP', 'Status']]
+            
+            for log in logs:
+                data.append([
+                    log.data_hora.strftime('%d/%m/%Y %H:%M') if log.data_hora else '-',
+                    log.usuario_nome or 'Anônimo',
+                    log.acao[:50] + ('...' if len(log.acao) > 50 else ''),
+                    log.ip_address or '-',
+                    str(log.status_code) if log.status_code else '-'
+                ])
+            
+            table = Table(data, colWidths=[3*cm, 2.5*cm, 4*cm, 2.5*cm, 1.5*cm])
+            table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#25691b')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 10),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 1), (-1, -1), 8),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+            
+            elements.append(table)
+        else:
+            elements.append(Paragraph("Nenhum registro encontrado para os filtros selecionados.", styles['Normal']))
+        
+        # Gerar PDF
+        doc.build(elements)
+        buffer.seek(0)
+        
+        return buffer.getvalue(), 200, {
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': 'attachment; filename="auditoria_embryotech.pdf"'
+        }
+        
+    except ImportError:
+        return jsonify({'message': 'Biblioteca reportlab não instalada. Execute: pip install reportlab'}), 500
+    except Exception as e:
+        return jsonify({'message': f'Erro ao gerar PDF: {str(e)}'}), 500
+
+@app.route('/api/relatorio/leituras/pdf', methods=['GET'])
+@token_required
+@log_activity("EXPORTAR_LEITURAS_PDF")
+def api_exportar_leituras_pdf(current_user):
+    """Exportar relatório de leituras em PDF"""
+    if not current_user.is_admin:
+        return jsonify({'message': 'Acesso negado!'}), 403
+    
+    try:
+        from reportlab.lib.pagesizes import A4, landscape
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib import colors
+        from reportlab.lib.units import cm
+        import io
+        
+        # Parâmetros de filtro
+        lote = request.args.get('lote')
+        data_inicio = request.args.get('data_inicio')
+        data_fim = request.args.get('data_fim')
+        
+        # Consultar leituras
+        query = Leitura.query
+        if lote:
+            query = query.filter(Leitura.lote == lote)
+        if data_inicio:
+            query = query.filter(Leitura.data_inicial >= data_inicio)
+        if data_fim:
+            data_fim_obj = datetime.datetime.strptime(data_fim, '%Y-%m-%d')
+            data_fim_obj = data_fim_obj.replace(hour=23, minute=59, second=59)
+            query = query.filter(Leitura.data_inicial <= data_fim_obj)
+        
+        leituras = query.order_by(Leitura.data_inicial.desc()).limit(1000).all()
+        
+        # Criar PDF
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), rightMargin=cm, leftMargin=cm, 
+                               topMargin=cm, bottomMargin=cm)
+        
+        # Estilos
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            'TitleStyle',
+            parent=styles['Heading1'],
+            fontSize=16,
+            textColor=colors.HexColor('#25691b'),
+            alignment=1,  # Center
+            spaceAfter=20
+        )
+        
+        # Conteúdo do PDF
+        elements = []
+        
+        # Título
+        title = Paragraph("Relatório de Leituras - Embryotech", title_style)
+        elements.append(title)
+        
+        # Informações do relatório
+        info_text = f"Gerado em: {datetime.datetime.now().strftime('%d/%m/%Y às %H:%M')}<br/>"
+        info_text += f"Total de registros: {len(leituras)}<br/>"
+        if lote:
+            info_text += f"Filtrado por lote: {lote}<br/>"
+        if data_inicio:
+            info_text += f"Data início: {data_inicio}<br/>"
+        if data_fim:
+            info_text += f"Data fim: {data_fim}<br/>"
+        
+        info_para = Paragraph(info_text, styles['Normal'])
+        elements.append(info_para)
+        elements.append(Spacer(1, 20))
+        
+        # Tabela de dados
+        if leituras:
+            data = [['Data/Hora', 'Lote', 'Temp.(°C)', 'Umid.(%)', 'Pressão(hPa)']]
+            
+            for leitura in leituras:
+                data.append([
+                    leitura.data_inicial.strftime('%d/%m/%Y %H:%M') if leitura.data_inicial else '-',
+                    leitura.lote or '-',
+                    f"{leitura.temperatura:.1f}" if leitura.temperatura else '-',
+                    f"{leitura.umidade:.1f}" if leitura.umidade else '-',
+                    f"{leitura.pressao:.1f}" if leitura.pressao else '-'
+                ])
+            
+            table = Table(data, colWidths=[3*cm, 3*cm, 2*cm, 2*cm, 2*cm])
+            table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#25691b')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 10),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 1), (-1, -1), 9),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+            
+            elements.append(table)
+        else:
+            elements.append(Paragraph("Nenhum registro encontrado para os filtros selecionados.", styles['Normal']))
+        
+        # Gerar PDF
+        doc.build(elements)
+        buffer.seek(0)
+        
+        return buffer.getvalue(), 200, {
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': 'attachment; filename="leituras_embryotech.pdf"'
+        }
+        
+    except ImportError:
+        return jsonify({'message': 'Biblioteca reportlab não instalada. Execute: pip install reportlab'}), 500
+    except Exception as e:
+        return jsonify({'message': f'Erro ao gerar PDF: {str(e)}'}), 500
+
+@app.route('/api/usuarios/<int:user_id>/senha', methods=['PUT'])
+@token_required
+@log_activity("ALTERAR_SENHA_USUARIO")
+def api_alterar_senha_usuario(current_user, user_id):
+    """Alterar senha de outro usuário (apenas admin)"""
+    if not current_user.is_admin:
+        return jsonify({'message': 'Acesso negado!'}), 403
+    
+    data = request.get_json()
+    nova_senha = data.get('nova_senha')
+    
+    if not nova_senha or len(nova_senha) < 6:
+        return jsonify({'message': 'Nova senha deve ter pelo menos 6 caracteres'}), 400
+    
+    usuario = User.query.get(user_id)
+    if not usuario:
+        return jsonify({'message': 'Usuário não encontrado'}), 404
+    
+    try:
+        usuario.set_password(nova_senha)
+        db.session.commit()
+        
+        log_crud_operation(current_user, 'users', 'UPDATE_PASSWORD', user_id, 
+                          dados={'usuario_alterado': usuario.username})
+        
+        return jsonify({'message': 'Senha alterada com sucesso'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'message': f'Erro ao alterar senha: {str(e)}'}), 500
+
+@app.route('/api/usuarios/<int:user_id>/admin', methods=['PUT'])
+@token_required
+@log_activity("ALTERAR_PRIVILEGIOS_USUARIO")
+def api_alterar_privilegios_usuario(current_user, user_id):
+    """Alterar privilégios de admin de um usuário (apenas admin)"""
+    if not current_user.is_admin:
+        return jsonify({'message': 'Acesso negado!'}), 403
+    
+    data = request.get_json()
+    is_admin = data.get('is_admin', False)
+    
+    usuario = User.query.get(user_id)
+    if not usuario:
+        return jsonify({'message': 'Usuário não encontrado'}), 404
+    
+    # Evitar que o admin remova seu próprio privilégio
+    if usuario.id == current_user.id and not is_admin:
+        return jsonify({'message': 'Você não pode remover seus próprios privilégios de admin'}), 400
+    
+    try:
+        usuario.is_admin = is_admin
+        db.session.commit()
+        
+        acao = 'PROMOVER_ADMIN' if is_admin else 'REMOVER_ADMIN'
+        log_crud_operation(current_user, 'users', acao, user_id, 
+                          dados={'usuario_alterado': usuario.username, 'novo_status': is_admin})
+        
+        return jsonify({'message': 'Privilégios alterados com sucesso'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'message': f'Erro ao alterar privilégios: {str(e)}'}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=PORT, debug=True)
