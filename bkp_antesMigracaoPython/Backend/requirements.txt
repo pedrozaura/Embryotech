@@ -1,0 +1,13 @@
+Flask
+Flask-SQLAlchemy
+SQLAlchemy==1.4.48
+Flask-Migrate
+psycopg2-binary
+psycopg2
+Flasgger
+requests
+Flask-Cors
+python-dotenv
+pyjwt
+werkzeug
+gunicorn

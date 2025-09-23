@@ -1,0 +1,111 @@
+Jun 28 00:09:16 srv595224 flask[49788]: 177.173.215.25 - - [28/Jun/2025 00:09:16] "GET / HTTP/1.1" 200 -
+Jun 28 00:09:16 srv595224 flask[49788]: 177.173.215.25 - - [28/Jun/2025 00:09:16] "GET /favicon.ico HTTP/1.1" 404 -
+Jun 28 00:09:30 srv595224 flask[49788]: 177.173.215.25 - - [28/Jun/2025 00:09:30] "GET /index.html HTTP/1.1" 404 -
+Jun 28 00:09:38 srv595224 flask[49788]: 177.173.215.25 - - [28/Jun/2025 00:09:38] "GET / HTTP/1.1" 200 -
+Jun 28 00:09:58 srv595224 flask[49788]: 177.173.215.25 - - [28/Jun/2025 00:09:58] "GET /dashboard HTTP/1.1" 404 -
+Jun 28 00:10:03 srv595224 flask[49788]: 177.173.215.25 - - [28/Jun/2025 00:10:03] "GET /dashboard.html HTTP/1.1" 404 -
+Jun 28 00:11:14 srv595224 flask[49788]: 177.173.215.25 - - [28/Jun/2025 00:11:14] "OPTIONS /login HTTP/1.1" 200 -
+Jun 28 00:11:15 srv595224 flask[49788]: 177.173.215.25 - - [28/Jun/2025 00:11:15] "POST /login HTTP/1.1" 200 -
+Jun 28 00:11:15 srv595224 flask[49788]: 177.173.215.25 - - [28/Jun/2025 00:11:15] "OPTIONS /leituras HTTP/1.1" 200 -
+Jun 28 00:11:15 srv595224 flask[49788]: 177.173.215.25 - - [28/Jun/2025 00:11:15] "GET /leituras HTTP/1.1" 200 -
+Jun 28 00:12:18 srv595224 systemd[1]: Stopping API Embriotech Flask Service...
+Jun 28 00:12:18 srv595224 systemd[1]: api-embriotech.service: Deactivated successfully.
+Jun 28 00:12:18 srv595224 systemd[1]: Stopped API Embriotech Flask Service.
+Jun 28 00:12:18 srv595224 systemd[1]: api-embriotech.service: Consumed 2min 4.276s CPU time.
+Jun 28 00:12:18 srv595224 systemd[1]: Started API Embriotech Flask Service.
+Jun 28 00:12:20 srv595224 flask[85126]:  * Serving Flask app 'app.py'
+Jun 28 00:12:20 srv595224 flask[85126]:  * Debug mode: off
+Jun 28 00:12:20 srv595224 flask[85126]: WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+Jun 28 00:12:20 srv595224 flask[85126]:  * Running on all addresses (0.0.0.0)
+Jun 28 00:12:20 srv595224 flask[85126]:  * Running on http://127.0.0.1:5001
+Jun 28 00:12:20 srv595224 flask[85126]:  * Running on http://147.79.104.68:5001
+Jun 28 00:12:20 srv595224 flask[85126]: Press CTRL+C to quit
+Jun 28 00:12:31 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:12:31] "OPTIONS /leituras HTTP/1.1" 200 -
+Jun 28 00:12:31 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:12:31] "GET /leituras HTTP/1.1" 200 -
+Jun 28 00:12:33 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:12:33] "OPTIONS /leituras HTTP/1.1" 200 -
+Jun 28 00:12:33 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:12:33] "GET /leituras HTTP/1.1" 200 -
+Jun 28 00:12:35 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:12:35] "OPTIONS /leituras HTTP/1.1" 200 -
+Jun 28 00:12:35 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:12:35] "GET /leituras HTTP/1.1" 200 -
+Jun 28 00:18:04 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:18:04] "OPTIONS /leituras HTTP/1.1" 200 -
+Jun 28 00:18:04 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:18:04] "GET /leituras HTTP/1.1" 200 -
+Jun 28 00:18:25 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:18:25] "OPTIONS /login HTTP/1.1" 200 -
+Jun 28 00:18:26 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:18:26] "POST /login HTTP/1.1" 200 -
+Jun 28 00:18:26 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:18:26] "OPTIONS /leituras HTTP/1.1" 200 -
+Jun 28 00:18:26 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:18:26] "GET /leituras HTTP/1.1" 200 -
+Jun 28 00:20:44 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:20:44] "OPTIONS /leituras HTTP/1.1" 200 -
+Jun 28 00:20:44 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:20:44] "GET /leituras HTTP/1.1" 200 -
+Jun 28 00:20:51 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:20:51] "OPTIONS /login HTTP/1.1" 200 -
+Jun 28 00:20:51 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:20:51] "POST /login HTTP/1.1" 200 -
+Jun 28 00:20:51 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:20:51] "OPTIONS /leituras HTTP/1.1" 200 -
+Jun 28 00:20:52 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:20:52] "GET /leituras HTTP/1.1" 200 -
+Jun 28 00:21:40 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:21:40] "OPTIONS /leituras HTTP/1.1" 200 -
+Jun 28 00:21:40 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:21:40] "GET /leituras HTTP/1.1" 200 -
+Jun 28 00:21:41 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:21:41] "OPTIONS /leituras HTTP/1.1" 200 -
+Jun 28 00:21:41 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:21:41] "GET /leituras HTTP/1.1" 200 -
+Jun 28 00:21:50 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:21:50] "OPTIONS /login HTTP/1.1" 200 -
+Jun 28 00:21:50 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:21:50] "POST /login HTTP/1.1" 200 -
+Jun 28 00:21:50 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:21:50] "OPTIONS /leituras HTTP/1.1" 200 -
+Jun 28 00:21:50 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:21:50] "GET /leituras HTTP/1.1" 200 -
+Jun 28 00:22:45 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:22:45] "OPTIONS /leituras HTTP/1.1" 200 -
+Jun 28 00:22:45 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:22:45] "GET /leituras HTTP/1.1" 200 -
+Jun 28 00:22:56 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:22:56] "OPTIONS /login HTTP/1.1" 200 -
+Jun 28 00:22:56 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:22:56] "POST /login HTTP/1.1" 200 -
+Jun 28 00:22:56 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:22:56] "OPTIONS /leituras HTTP/1.1" 200 -
+Jun 28 00:22:56 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:22:56] "GET /leituras HTTP/1.1" 200 -
+Jun 28 00:23:11 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:23:11] "OPTIONS /leituras HTTP/1.1" 200 -
+Jun 28 00:23:11 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:23:11] "GET /leituras HTTP/1.1" 200 -
+Jun 28 00:23:18 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:23:18] "OPTIONS /leituras HTTP/1.1" 200 -
+Jun 28 00:23:18 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:23:18] "GET /leituras HTTP/1.1" 200 -
+Jun 28 00:23:24 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:23:24] "OPTIONS /login HTTP/1.1" 200 -
+Jun 28 00:23:24 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:23:24] "POST /login HTTP/1.1" 200 -
+Jun 28 00:23:25 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:23:25] "OPTIONS /leituras HTTP/1.1" 200 -
+Jun 28 00:23:25 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:23:25] "GET /leituras HTTP/1.1" 200 -
+Jun 28 00:23:30 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:23:30] "OPTIONS /leituras HTTP/1.1" 200 -
+Jun 28 00:23:30 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:23:30] "GET /leituras HTTP/1.1" 200 -
+Jun 28 00:23:32 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:23:32] "OPTIONS /leituras HTTP/1.1" 200 -
+Jun 28 00:23:32 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:23:32] "GET /leituras HTTP/1.1" 200 -
+Jun 28 00:23:36 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:23:36] "OPTIONS /login HTTP/1.1" 200 -
+Jun 28 00:23:37 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:23:37] "POST /login HTTP/1.1" 200 -
+Jun 28 00:23:37 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:23:37] "OPTIONS /leituras HTTP/1.1" 200 -
+Jun 28 00:23:37 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:23:37] "GET /leituras HTTP/1.1" 200 -
+Jun 28 00:23:42 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:23:42] "OPTIONS /leituras HTTP/1.1" 200 -
+Jun 28 00:23:43 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:23:43] "GET /leituras HTTP/1.1" 200 -
+Jun 28 00:23:45 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:23:45] "OPTIONS /leituras HTTP/1.1" 200 -
+Jun 28 00:23:45 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:23:45] "GET /leituras HTTP/1.1" 200 -
+Jun 28 00:23:50 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:23:50] "OPTIONS /login HTTP/1.1" 200 -
+Jun 28 00:23:50 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:23:50] "POST /login HTTP/1.1" 200 -
+Jun 28 00:23:50 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:23:50] "OPTIONS /leituras HTTP/1.1" 200 -
+Jun 28 00:23:50 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:23:50] "GET /leituras HTTP/1.1" 200 -
+Jun 28 00:23:58 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:23:58] "OPTIONS /leituras HTTP/1.1" 200 -
+Jun 28 00:23:58 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:23:58] "GET /leituras HTTP/1.1" 200 -
+Jun 28 00:24:05 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:24:05] "OPTIONS /leituras HTTP/1.1" 200 -
+Jun 28 00:24:06 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:24:06] "GET /leituras HTTP/1.1" 200 -
+Jun 28 00:26:01 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:26:01] "OPTIONS /login HTTP/1.1" 200 -
+Jun 28 00:26:01 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:26:01] "POST /login HTTP/1.1" 200 -
+Jun 28 00:26:01 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:26:01] "OPTIONS /leituras HTTP/1.1" 200 -
+Jun 28 00:26:01 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:26:01] "GET /leituras HTTP/1.1" 200 -
+Jun 28 00:27:17 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:27:17] "OPTIONS /leituras HTTP/1.1" 200 -
+Jun 28 00:27:17 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:27:17] "GET /leituras HTTP/1.1" 200 -
+Jun 28 00:30:00 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:30:00] "OPTIONS /leituras HTTP/1.1" 200 -
+Jun 28 00:30:00 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:30:00] "GET /leituras HTTP/1.1" 200 -
+Jun 28 00:30:02 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:30:02] "OPTIONS /leituras HTTP/1.1" 200 -
+Jun 28 00:30:02 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:30:02] "GET /leituras HTTP/1.1" 200 -
+Jun 28 00:30:09 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:30:09] "OPTIONS /login HTTP/1.1" 200 -
+Jun 28 00:30:09 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:30:09] "POST /login HTTP/1.1" 200 -
+Jun 28 00:30:09 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:30:09] "OPTIONS /leituras HTTP/1.1" 200 -
+Jun 28 00:30:10 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:30:10] "GET /leituras HTTP/1.1" 200 -
+Jun 28 00:30:27 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:30:27] "OPTIONS /leituras HTTP/1.1" 200 -
+Jun 28 00:30:27 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:30:27] "GET /leituras HTTP/1.1" 200 -
+Jun 28 00:31:32 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:31:32] "OPTIONS /leituras HTTP/1.1" 200 -
+Jun 28 00:31:32 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:31:32] "GET /leituras HTTP/1.1" 200 -
+Jun 28 00:31:57 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:31:57] "OPTIONS /leituras HTTP/1.1" 200 -
+Jun 28 00:31:58 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:31:58] "GET /leituras HTTP/1.1" 200 -
+Jun 28 00:33:44 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:33:44] "OPTIONS /leituras HTTP/1.1" 200 -
+Jun 28 00:33:44 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:33:44] "GET /leituras HTTP/1.1" 200 -
+Jun 28 00:34:13 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:34:13] "OPTIONS /leituras HTTP/1.1" 200 -
+Jun 28 00:34:13 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:34:13] "GET /leituras HTTP/1.1" 200 -
+Jun 28 00:35:47 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:35:47] "OPTIONS /leituras HTTP/1.1" 200 -
+Jun 28 00:35:47 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:35:47] "GET /leituras HTTP/1.1" 200 -
+Jun 28 00:39:53 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:39:53] "OPTIONS /leituras HTTP/1.1" 200 -
+Jun 28 00:39:53 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:39:53] "GET /leituras HTTP/1.1" 200 -
+Jun 28 00:40:15 srv595224 flask[85126]: 177.173.215.25 - - [28/Jun/2025 00:40:15] "OPTIONS /parametros HTTP/1.1" 404 -

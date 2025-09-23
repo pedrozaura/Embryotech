@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Embryotech - Dashboard</title>
+    <link rel="icon" href="images/favicon.ico" type="image/png" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+  <body>
+    <header>
+      <div class="header-content">
+        <img
+          src="images/logo-icon.png"
+          alt="Logo Embryotech"
+          class="header-logo"
+        />
+        <h1>Dashboard Embryotech</h1>
+      </div>
+      <button id="logoutBtn">Sair</button>
+    </header>
+
+    <main>
+      <section class="last-reading">
+        <h2>Última Leitura</h2>
+        <div id="lastReadingContainer" class="reading-card">
+          <p>Carregando última leitura...</p>
+        </div>
+      </section>
+
+      <!-- Botões: Histórico e Parâmetros -->
+      <div class="button-group">
+        <button id="showHistoryBtn">Histórico</button>
+        <button id="btnParametros">Gerenciar Parâmetros</button>
+      </div>
+
+      <section class="charts-section">
+        <h2>Análise Gráfica</h2>
+        <div class="chart-container">
+          <div class="lote-selector">
+            <label for="loteFilter">Selecione o Lote:</label>
+            <select id="loteFilter" class="form-control">
+              <option value="">Todos os Lotes</option>
+              <!-- Opções serão preenchidas via JavaScript -->
+            </select>
+          </div>
+          <h3 id="loteLabel">Lote: Carregando...</h3>
+          <div class="chart-row">
+            <div class="chart-wrapper">
+              <h4>Temperatura (°C)</h4>
+              <canvas id="tempChart"></canvas>
+            </div>
+            <div class="chart-wrapper">
+              <h4>Umidade (%)</h4>
+              <canvas id="umidChart"></canvas>
+            </div>
+          </div>
+          <div class="chart-row">
+            <div class="chart-wrapper">
+              <h4>Pressão (hPa)</h4>
+              <canvas id="pressChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Modal de Histórico -->
+    <div id="customModal" class="custom-modal">
+      <div class="custom-modal-content">
+        <div class="custom-modal-header">
+          <h3>Histórico de Leituras</h3>
+          <span class="custom-close-btn">&times;</span>
+        </div>
+        <div class="custom-modal-body" id="readingsListContainer">
+          <!-- Conteúdo será inserido via JavaScript -->
+        </div>
+        <div class="custom-modal-footer">
+          <div id="readingsCount" class="modal-footer-left"></div>
+          <button class="custom-close-btn">Fechar</button>
+        </div>
+      </div>
+    </div>
+    <!-- Modal de Parâmetros -->
+    <div id="parametroModal" class="custom-modal">
+      <div class="custom-modal-content">
+        <div class="custom-modal-header">
+          <h3>Gerenciar Parâmetros</h3>
+        </div>
+        <div class="custom-modal-body">
+          <div class="parametro-filters">
+            <div class="form-group">
+              <label>Empresa:</label>
+              <select id="empresaSelect" class="form-control">
+                <option value="">Selecione uma empresa</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Lote:</label>
+              <select id="loteSelect" class="form-control" disabled>
+                <option value="">Selecione um lote</option>
+              </select>
+            </div>
+            <div class="button-group">
+              <button id="btnBuscarParametros" class="custom-save-btn">
+                Buscar Parâmetros
+              </button>
+              <button id="btnNovoParametro" class="custom-save-btn">
+                Novo Parâmetro
+              </button>
+              <button id="btnFecharParametros" class="custom-close-btn">
+                Fechar
+              </button>
+            </div>
+          </div>
+
+          <form id="parametroForm" style="display: none">
+            <input type="hidden" name="id" />
+
+            <div class="form-group">
+              <label>Empresa *</label>
+              <input type="text" name="empresa" required />
+            </div>
+
+            <div class="form-group">
+              <label>Lote *</label>
+              <input type="text" name="lote" required />
+            </div>
+
+            <div class="form-group">
+              <label>Temperatura Ideal (°C) *</label>
+              <input type="number" step="0.1" name="temp_ideal" required />
+            </div>
+
+            <div class="form-group">
+              <label>Umidade Ideal (%) *</label>
+              <input type="number" step="0.1" name="umid_ideal" required />
+            </div>
+
+            <div class="form-group">
+              <label>Pressão Ideal (hPa) *</label>
+              <input type="number" step="0.1" name="pressao_ideal" />
+            </div>
+
+            <div class="form-group">
+              <label>Lumens *</label>
+              <input type="number" step="1" name="lumens" />
+            </div>
+
+            <div class="form-group">
+              <label>ID da Sala *</label>
+              <input type="number" name="id_sala" />
+            </div>
+
+            <div class="form-group">
+              <label>Estágio do Ovo</label>
+              <input type="number" name="estagio_ovo" />
+            </div>
+
+            <div class="button-group">
+              <button type="submit" class="custom-save-btn">Salvar</button>
+              <button type="button" id="btnCancelar" class="custom-close-btn">
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="errorMessage"
+      class="error-message"
+      style="
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 10000;
+      "
+    ></div>
+
+    <script src="script.js"></script>
+  </body>
+</html>

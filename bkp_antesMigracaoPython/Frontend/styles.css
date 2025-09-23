@@ -1,0 +1,586 @@
+@import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap");
+@font-face {
+  font-family: "goodTimes";
+  src: url("https://dl.dafont.com/dl/?f=good_times") format("woff2");
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "GOOD-TIMES";
+  src: url("fonts/good-times.otf") format("truetype");
+  font-weight: bold;
+  font-style: normal;
+}
+
+body {
+  font-family: "Montserrat", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: #f5f5f5;
+  color: #333;
+}
+
+.login-container {
+  max-width: 400px;
+  margin: 100px auto;
+  padding: 30px;
+  background: #ebf8e7;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.login-container h1 {
+  font-family: "GOOD-TIMES", sans-serif;
+  font-weight: bold;
+  color: #25691b;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+}
+
+.login-container h1 span {
+  font-family: "Montserrat", sans-serif;
+  font-weight: 400;
+  color: #25691b;
+}
+
+.login-container h2 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  max-width: 400px;
+  margin: 10vh auto;
+  padding: 40px 30px;
+  background: rgb(255, 255, 255);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.logo-icon {
+  width: 50px;
+  height: 50px;
+  object-fit: contain;
+}
+
+@media (max-width: 768px) {
+  .readings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .custom-modal-content {
+    width: 95%;
+    max-height: 90vh;
+  }
+
+  .button-group {
+    flex-direction: column;
+  }
+
+  .button-group button {
+    max-width: 100%;
+    width: 100%;
+  }
+}
+
+.form-group {
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+.form-group input {
+  width: 90%;
+  padding: 12px;
+  border: 1px solid #bdc3c7;
+  border-radius: 25px;
+  box-sizing: border-box;
+  margin: 0 auto;
+  display: block;
+}
+
+button {
+  background-color: #25691b;
+  color: rgb(238, 248, 237);
+  border: none;
+  padding: 14px 20px;
+  border-radius: 25px;
+  cursor: pointer;
+  font-size: 16px;
+  width: 60%;
+  margin: 20px auto 0;
+  display: block;
+  transition: background-color 0.7s;
+}
+
+button:hover {
+  background-color: #64d354;
+}
+
+.error-message {
+  color: #e74c3c;
+  margin-top: 20px;
+  padding: 10px;
+  border-radius: 4px;
+  display: none;
+}
+
+/* Dashboard styles */
+header {
+  background-color: #25691b;
+  color: white;
+  padding: 0.1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex-grow: 1;
+  justify-content: center;
+  margin-left: 60px;
+}
+
+.header-logo {
+  height: 40px;
+  width: auto;
+  position: absolute;
+  left: 20px;
+}
+
+header #logoutBtn {
+  width: auto;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  background-color: #25691b;
+  margin: 0;
+  position: static;
+}
+
+header #logoutBtn:hover {
+  background-color: #64d354;
+  margin-left: auto;
+}
+
+/* Gráficos */
+.charts-section {
+  margin-top: 2rem;
+}
+
+.chart-container {
+  background-color: white;
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.chart-row {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.chart-wrapper {
+  flex: 1;
+  background-color: #f9f9f9;
+  padding: 1rem;
+  border-radius: 8px;
+}
+
+.chart-wrapper h4 {
+  margin-top: 0;
+  text-align: center;
+  color: #2c3e50;
+}
+
+canvas {
+  width: 100% !important;
+  height: 300px !important;
+}
+
+/* Modal */
+.modal-body {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+/* Tabela de histórico */
+
+main {
+  padding: 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+section {
+  margin-bottom: 40px;
+}
+
+.reading-card {
+  background: #f8f9fa;
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 1rem;
+}
+
+/* Substitua todas as definições de .reading-item por esta: */
+.readings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.reading-item {
+  background: white;
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-left: 4px solid #25691b;
+}
+
+.reading-item p {
+  margin: 8px 0;
+  font-size: 0.95rem;
+}
+
+.reading-item strong {
+  color: #25691b;
+}
+
+.reading-value {
+  font-weight: bold;
+  color: #1a5276;
+}
+
+.reading-date {
+  color: #25691b;
+  font-size: 0.9em;
+}
+
+.reading-lote {
+  background-color: #2980b9;
+  color: white;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 0.8em;
+}
+
+.error-message.login-error {
+  background-color: #fdecea;
+  border-left: 4px solid #e74c3c;
+  animation: shake 0.5s;
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
+    transform: translateX(-5px);
+  }
+  20%,
+  40%,
+  60%,
+  80% {
+    transform: translateX(5px);
+  }
+}
+
+.logout-message {
+  color: #27ae60;
+  margin: 15px 0;
+  padding: 10px;
+  background-color: #e8f5e9;
+  border-radius: 4px;
+  display: none;
+}
+
+.login-footer {
+  margin-top: 30px;
+  color: #4e5657;
+  font-size: 0.8em;
+}
+
+/* Modal personalizado */
+.custom-modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  justify-content: center;
+  align-items: center;
+}
+
+.custom-modal-content {
+  background-color: white;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 800px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  margin: 0 auto;
+  overflow: hidden;
+}
+
+.custom-modal-header {
+  padding: 15px 20px;
+  border-bottom: 1px solid #eee;
+}
+
+.custom-modal-header h3 {
+  margin: 0;
+  color: #25691b;
+  text-align: center;
+}
+
+.custom-modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  max-height: 65vh; /* Ajustado para dar mais espaço */
+  flex-grow: 1;
+}
+
+.custom-modal-content {
+  max-height: 85vh; /* Ajuste para telas menores */
+}
+
+.custom-modal-footer {
+  padding: 15px 20px;
+  border-top: 1px solid #eee;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 20px;
+}
+
+.modal-footer-left {
+  color: #666;
+  font-size: 0.9rem;
+  margin-right: auto;
+}
+
+.align-right-group {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-left: auto;
+}
+
+.custom-close-btn {
+  background-color: #25691b !important; /* Destaque para o botão fechar */
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s;
+  /* Novas regras para dimensionamento do botão Fechar */
+  width: auto; /* Permite que a largura se ajuste ao conteúdo */
+  min-width: unset; /* Remove qualquer largura mínima herdada */
+}
+
+.custom-close-btn:hover {
+  background-color: #64d354 !important;
+}
+
+.modal-footer-left strong {
+  color: #25691b;
+  font-weight: 600;
+}
+
+/* Estilo para os botões "Histórico" e "Gerenciar Parâmetros" */
+.button-group {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-bottom: 30px;
+  width: 100%;
+}
+
+.button-group button {
+  background-color: #25691b;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  margin: 0;
+  width: auto;
+  min-width: 160px;
+  display: inline-block;
+  text-align: center;
+  line-height: normal;
+  white-space: nowrap;
+  flex: 1;
+  max-width: 200px;
+}
+
+.button-group button:hover {
+  background-color: #64d354;
+}
+
+/* Estilo específico para o botão de logout no header */
+header #logoutBtn {
+  background-color: #25691b;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  margin-left: auto;
+}
+
+/* Formulário de parâmetros */
+#parametroForm input {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 15px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+.custom-save-btn {
+  background-color: #25691b;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  margin-right: 10px;
+}
+
+.custom-save-btn:hover {
+  background-color: #1d5615;
+}
+
+.parametro-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+.form-control {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+.button-group {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.custom-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  border-bottom: 1px solid #eee;
+}
+
+.custom-modal-header h3 {
+  margin: 0;
+  color: #25691b;
+  flex-grow: 1;
+  text-align: center;
+}
+
+.success-message {
+  color: #25691b;
+  background-color: #e8f5e9;
+  padding: 10px;
+  border-radius: 4px;
+  border-left: 4px solid #25691b;
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10000;
+  animation: fadeIn 0.3s;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.lote-selector {
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lote-selector label {
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.lote-selector select {
+  padding: 8px 12px;
+  border: 1px solid #bdc3c7;
+  border-radius: 4px;
+  background-color: white;
+  font-family: "Montserrat", sans-serif;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: #666;
+}
+
+.empty-state i {
+  font-size: 3rem;
+  color: #bdc3c7;
+  margin-bottom: 15px;
+  display: block;
+}
