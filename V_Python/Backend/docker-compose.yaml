@@ -33,13 +33,15 @@ services:
       - ./logs:/app/logs
 
     restart: unless-stopped
+    networks:
+      - minha_network
 
     # Aguarda até o banco estar disponível (se usar banco local)
     # depends_on:
     #   - postgres
 
     # Para corrigir problemas de escala, usar servidor Flask
-    #command: ["python", "app.py"]
+    # command: ["python", "app.py"]
 
     # Para produção (depois de corrigir) - Gunicorn
     command:
@@ -58,6 +60,11 @@ services:
         "app:app",
       ]
 
+# Networks devem estar no mesmo nível de 'services', não dentro dele
+networks:
+  minha_network:
+    external: true
+
   # OPCIONAL: Use este serviço se quiser um banco PostgreSQL local
   # Descomente as linhas abaixo se não quiser usar o banco externo
 
@@ -73,5 +80,7 @@ services:
   #   volumes:
   #     - postgres_data:/var/lib/postgresql/data
   #   restart: unless-stopped
+  #   networks:
+  #     - minha_network
 # volumes:
 #   postgres_data:
