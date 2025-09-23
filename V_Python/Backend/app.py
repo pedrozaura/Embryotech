@@ -816,6 +816,111 @@ def api_alterar_privilegios_usuario(current_user, user_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'message': f'Erro ao alterar privilégios: {str(e)}'}), 500
+@app.route('/api/relatorio/usuarios/pdf', methods=['GET'])
+@token_required
+@log_activity("EXPORTAR_USUARIOS_PDF")
+def api_exportar_usuarios_pdf(current_user):
+    """Exportar relatório de usuários em PDF"""
+    if not current_user.is_admin:
+        return jsonify({'message': 'Acesso negado!'}), 403
+    
+    try:
+        from reportlab.lib.pagesizes import A4, landscape
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib import colors
+        from reportlab.lib.units import cm
+        import io
+        
+        # Parâmetro de filtro
+        tipo_usuario = request.args.get('tipo')
+        
+        # Consultar usuários
+        usuarios = User.query.all()
+        
+        # Filtrar por tipo se especificado
+        if tipo_usuario == 'admin':
+            usuarios = [u for u in usuarios if u.is_admin]
+        elif tipo_usuario == 'user':
+            usuarios = [u for u in usuarios if not u.is_admin]
+        
+        # Criar PDF
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=cm, leftMargin=cm, 
+                               topMargin=cm, bottomMargin=cm)
+        
+        # Estilos
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            'TitleStyle',
+            parent=styles['Heading1'],
+            fontSize=16,
+            textColor=colors.HexColor('#25691b'),
+            alignment=1,  # Center
+            spaceAfter=20
+        )
+        
+        # Conteúdo do PDF
+        elements = []
+        
+        # Título
+        title = Paragraph("Relatório de Usuários - Embryotech", title_style)
+        elements.append(title)
+        
+        # Informações do relatório
+        info_text = f"Gerado em: {datetime.datetime.now().strftime('%d/%m/%Y às %H:%M')}<br/>"
+        info_text += f"Total de registros: {len(usuarios)}<br/>"
+        if tipo_usuario:
+            tipo_desc = 'Administradores' if tipo_usuario == 'admin' else 'Usuários Comuns'
+            info_text += f"Filtrado por tipo: {tipo_desc}<br/>"
+        
+        info_para = Paragraph(info_text, styles['Normal'])
+        elements.append(info_para)
+        elements.append(Spacer(1, 20))
+        
+        # Tabela de dados
+        if usuarios:
+            data = [['ID', 'Nome de Usuário', 'Email', 'Tipo']]
+            
+            for usuario in usuarios:
+                data.append([
+                    str(usuario.id),
+                    usuario.username,
+                    usuario.email,
+                    'Administrador' if usuario.is_admin else 'Usuário Comum'
+                ])
+            
+            table = Table(data, colWidths=[2*cm, 4*cm, 6*cm, 3*cm])
+            table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#25691b')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 10),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 1), (-1, -1), 9),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+            
+            elements.append(table)
+        else:
+            elements.append(Paragraph("Nenhum usuário encontrado para os filtros selecionados.", styles['Normal']))
+        
+        # Gerar PDF
+        doc.build(elements)
+        buffer.seek(0)
+        
+        return buffer.getvalue(), 200, {
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': 'attachment; filename="usuarios_embryotech.pdf"'
+        }
+        
+    except ImportError:
+        return jsonify({'message': 'Biblioteca reportlab não instalada. Execute: pip install reportlab'}), 500
+    except Exception as e:
+        return jsonify({'message': f'Erro ao gerar PDF: {str(e)}'}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=PORT, debug=True)

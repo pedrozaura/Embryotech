@@ -42,7 +42,7 @@
           <!-- Opções serão preenchidas via JavaScript -->
         </select>
       </div>
-      <h3 id="loteLabel">Lote: Carregando...</h3>
+      <h3 id="loteLabel">Lote: Selecione um lote para visualizar os dados</h3>
       <div class="chart-row">
         <div class="chart-wrapper">
           <h4>Temperatura (°C)</h4>
@@ -111,6 +111,14 @@
           <button id="btnFecharParametros" class="custom-close-btn">
             Fechar
           </button>
+        </div>
+      </div>
+
+      <!-- Área para exibir parâmetros encontrados -->
+      <div id="parametrosEncontrados" style="display: none; margin-top: 20px">
+        <h4>Parâmetros Encontrados:</h4>
+        <div id="listaParametros">
+          <!-- Parâmetros serão listados aqui -->
         </div>
       </div>
 
@@ -278,6 +286,42 @@
   </div>
 </div>
 
+<!-- Modal de Relatório de Usuários -->
+<div id="usuariosRelatorioModal" class="custom-modal">
+  <div class="custom-modal-content">
+    <div class="custom-modal-header">
+      <h3>Relatório de Usuários</h3>
+      <span class="custom-close-btn">&times;</span>
+    </div>
+    <div class="custom-modal-body">
+      <div class="filtros-leituras">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Tipo de Usuário:</label>
+            <select id="filtroTipoUsuario" class="form-control">
+              <option value="">Todos os tipos</option>
+              <option value="admin">Administradores</option>
+              <option value="user">Usuários Comuns</option>
+            </select>
+          </div>
+        </div>
+        <div class="button-group">
+          <button onclick="buscarRelatorioUsuarios()" class="custom-save-btn">
+            Buscar
+          </button>
+          <button onclick="exportarUsuariosPDF()" class="custom-save-btn">
+            Exportar PDF
+          </button>
+        </div>
+      </div>
+
+      <div id="resultadosUsuariosRelatorio" class="resultados-relatorio">
+        <!-- Resultados serão carregados aqui -->
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Modal de Gerenciamento de Usuários -->
 <div id="usuariosModal" class="custom-modal">
   <div class="custom-modal-content">
@@ -433,7 +477,7 @@
     setupCharts();
     setupAdminControls();
     initLoteFilter();
-    fetchReadings();
+    fetchReadings(); // Busca a última leitura para o card superior
   }
 
   function setupAdminControls() {
@@ -515,21 +559,58 @@
   }
 
   function setupCharts() {
+    // CORREÇÃO 5: Iniciar gráficos vazios
     tempChart = new Chart(document.getElementById("tempChart"), {
       type: "line",
-      data: { labels: [], datasets: [] },
+      data: {
+        labels: [],
+        datasets: [
+          {
+            label: "Temperatura (°C)",
+            data: [],
+            borderColor: "rgba(255, 99, 132, 0.8)",
+            backgroundColor: "rgba(255, 99, 132, 0.2)",
+            tension: 0.1,
+            fill: true,
+          },
+        ],
+      },
       options: { responsive: true, maintainAspectRatio: false },
     });
 
     umidChart = new Chart(document.getElementById("umidChart"), {
       type: "line",
-      data: { labels: [], datasets: [] },
+      data: {
+        labels: [],
+        datasets: [
+          {
+            label: "Umidade (%)",
+            data: [],
+            borderColor: "rgba(54, 162, 235, 0.8)",
+            backgroundColor: "rgba(54, 162, 235, 0.2)",
+            tension: 0.1,
+            fill: true,
+          },
+        ],
+      },
       options: { responsive: true, maintainAspectRatio: false },
     });
 
     pressChart = new Chart(document.getElementById("pressChart"), {
       type: "line",
-      data: { labels: [], datasets: [] },
+      data: {
+        labels: [],
+        datasets: [
+          {
+            label: "Pressão (hPa)",
+            data: [],
+            borderColor: "rgba(3, 62, 253, 0.8)",
+            backgroundColor: "rgba(3, 62, 253, 0.2)",
+            tension: 0.1,
+            fill: true,
+          },
+        ],
+      },
       options: { responsive: true, maintainAspectRatio: false },
     });
   }
@@ -591,8 +672,13 @@
       // Reset estados
       const filtersSection = document.querySelector(".parametro-filters");
       const parametroForm = document.getElementById("parametroForm");
+      const parametrosEncontrados = document.getElementById(
+        "parametrosEncontrados"
+      );
+
       if (filtersSection) filtersSection.style.display = "block";
       if (parametroForm) parametroForm.style.display = "none";
+      if (parametrosEncontrados) parametrosEncontrados.style.display = "none";
     } else {
       console.error("Modal parametroModal não encontrado!");
     }
@@ -604,7 +690,7 @@
     // Configurar eventos dos botões do modal
     const btnFechar = document.getElementById("btnFecharParametros");
     const btnNovo = document.getElementById("btnNovoParametro");
-    const btnBuscar = document.getElementById("btnBuscarParametros");
+    const btnBuscar = document.getElementById("btnBuscarParametros"); // CORREÇÃO 1
     const btnCancelar = document.getElementById("btnCancelar");
     const empresaSelect = document.getElementById("empresaSelect");
     const parametroForm = document.getElementById("parametroForm");
@@ -618,19 +704,36 @@
     if (btnNovo) {
       btnNovo.onclick = function () {
         const filtersSection = document.querySelector(".parametro-filters");
+        const parametrosEncontrados = document.getElementById(
+          "parametrosEncontrados"
+        );
+
         if (filtersSection) filtersSection.style.display = "none";
         if (parametroForm) parametroForm.style.display = "block";
+        if (parametrosEncontrados) parametrosEncontrados.style.display = "none";
 
         parametroForm.reset();
         parametroForm.querySelector("[name='id']").value = "";
       };
     }
 
+    // CORREÇÃO 1: Implementar função buscar parâmetros
+    if (btnBuscar) {
+      btnBuscar.onclick = async function () {
+        await buscarParametros();
+      };
+    }
+
     if (btnCancelar) {
       btnCancelar.onclick = function () {
         const filtersSection = document.querySelector(".parametro-filters");
+        const parametrosEncontrados = document.getElementById(
+          "parametrosEncontrados"
+        );
+
         if (filtersSection) filtersSection.style.display = "block";
         if (parametroForm) parametroForm.style.display = "none";
+        if (parametrosEncontrados) parametrosEncontrados.style.display = "none";
       };
     }
 
@@ -654,6 +757,84 @@
     }
 
     console.log("Setup parametro modal concluído");
+  }
+
+  // CORREÇÃO 1: Nova função para buscar parâmetros
+  async function buscarParametros() {
+    const empresa = document.getElementById("empresaSelect").value;
+    const lote = document.getElementById("loteSelect").value;
+
+    if (!empresa || !lote) {
+      showError("Por favor, selecione uma empresa e um lote");
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem("embryotech_token");
+      const response = await fetch(
+        `/api/parametros?empresa=${encodeURIComponent(
+          empresa
+        )}&lote=${encodeURIComponent(lote)}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (response.ok) {
+        const parametros = await response.json();
+        exibirParametrosEncontrados(parametros);
+      } else {
+        const error = await response.json();
+        showError("Erro ao buscar parâmetros: " + error.message);
+      }
+    } catch (error) {
+      console.error("Erro ao buscar parâmetros:", error);
+      showError("Erro ao buscar parâmetros: " + error.message);
+    }
+  }
+
+  function exibirParametrosEncontrados(parametros) {
+    const container = document.getElementById("parametrosEncontrados");
+    const lista = document.getElementById("listaParametros");
+
+    if (parametros.length === 0) {
+      lista.innerHTML =
+        "<p>Nenhum parâmetro encontrado para esta empresa e lote.</p>";
+    } else {
+      let html = '<div class="tabela-container">';
+      html += '<table class="tabela-relatorio">';
+      html +=
+        "<thead><tr><th>ID</th><th>Temp. Ideal (°C)</th><th>Umid. Ideal (%)</th><th>Pressão Ideal (hPa)</th><th>Lumens</th><th>ID Sala</th><th>Estágio Ovo</th><th>Ações</th></tr></thead>";
+      html += "<tbody>";
+
+      parametros.forEach((param) => {
+        html += `<tr>
+          <td>${param.id}</td>
+          <td>${param.temp_ideal}</td>
+          <td>${param.umid_ideal}</td>
+          <td>${param.pressao_ideal || "-"}</td>
+          <td>${param.lumens || "-"}</td>
+          <td>${param.id_sala || "-"}</td>
+          <td>${param.estagio_ovo || "-"}</td>
+          <td>
+            <button onclick="editarParametro(${
+              param.id
+            })" class="btn-pequeno btn-promover">Editar</button>
+          </td>
+        </tr>`;
+      });
+
+      html += "</tbody></table></div>";
+      lista.innerHTML = html;
+    }
+
+    container.style.display = "block";
+  }
+
+  function editarParametro(id) {
+    // Buscar o parâmetro e preencher o formulário
+    // Esta função pode ser implementada se necessário
+    showMessage("Funcionalidade de edição em desenvolvimento", "success");
   }
 
   async function carregarEmpresas() {
@@ -777,6 +958,7 @@
     setupModalCloseEvents(document.getElementById("relatoriosModal"));
     setupModalCloseEvents(document.getElementById("auditoriaModal"));
     setupModalCloseEvents(document.getElementById("leiturasRelatorioModal"));
+    setupModalCloseEvents(document.getElementById("usuariosRelatorioModal")); // CORREÇÃO 4
   }
 
   function abrirRelatorioAuditoria() {
@@ -801,8 +983,16 @@
     }
   }
 
+  // CORREÇÃO 4: Implementar função completa de relatório de usuários
   function abrirRelatorioUsuarios() {
-    showMessage("Funcionalidade em desenvolvimento", "success");
+    document.getElementById("relatoriosModal").style.display = "none";
+    const modal = document.getElementById("usuariosRelatorioModal");
+    if (modal) {
+      modal.style.display = "flex";
+      setupModalCloseEvents(modal);
+      // Carregar automaticamente na abertura
+      buscarRelatorioUsuarios();
+    }
   }
 
   async function carregarUsuariosAuditoria() {
@@ -942,6 +1132,177 @@
                             <td><span class="status-${
                               log.status_code < 400 ? "sucesso" : "erro"
                             }">${log.status_code}</span></td>
+                        </tr>
+                    `
+                      )
+                      .join("")}
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    container.innerHTML = html;
+  }
+
+  // CORREÇÃO 3: Implementar função completa de buscar relatório de leituras
+  async function buscarRelatorioLeituras() {
+    const lote = document.getElementById("filtroLoteRelatorio").value;
+    const dataInicio = document.getElementById("dataInicioLeituras").value;
+    const dataFim = document.getElementById("dataFimLeituras").value;
+
+    try {
+      const token = localStorage.getItem("embryotech_token");
+      let url = "/api/relatorio/leituras?";
+
+      const params = [];
+      if (lote) params.push(`lote=${encodeURIComponent(lote)}`);
+      if (dataInicio) params.push(`data_inicio=${dataInicio}`);
+      if (dataFim) params.push(`data_fim=${dataFim}`);
+
+      url += params.join("&");
+
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const leituras = await response.json();
+        exibirResultadosLeituras(leituras);
+      } else {
+        const error = await response.json();
+        showError("Erro ao buscar dados de leituras: " + error.message);
+      }
+    } catch (error) {
+      console.error("Erro na busca de leituras:", error);
+      showError("Erro ao buscar dados de leituras: " + error.message);
+    }
+  }
+
+  function exibirResultadosLeituras(leituras) {
+    const container = document.getElementById("resultadosLeituras");
+
+    if (!leituras || leituras.length === 0) {
+      container.innerHTML =
+        '<div class="empty-state"><p>Nenhuma leitura encontrada para os filtros selecionados</p></div>';
+      return;
+    }
+
+    const html = `
+        <div class="relatorio-header">
+            <h4>Resultados das Leituras (${leituras.length} registros)</h4>
+        </div>
+        <div class="tabela-container">
+            <table class="tabela-relatorio">
+                <thead>
+                    <tr>
+                        <th>Data/Hora</th>
+                        <th>Lote</th>
+                        <th>Temperatura (°C)</th>
+                        <th>Umidade (%)</th>
+                        <th>Pressão (hPa)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${leituras
+                      .map(
+                        (leitura) => `
+                        <tr>
+                            <td>${formatDate(leitura.data_inicial)}</td>
+                            <td>${leitura.lote || "-"}</td>
+                            <td>${
+                              leitura.temperatura
+                                ? leitura.temperatura.toFixed(1)
+                                : "-"
+                            }</td>
+                            <td>${
+                              leitura.umidade ? leitura.umidade.toFixed(1) : "-"
+                            }</td>
+                            <td>${
+                              leitura.pressao ? leitura.pressao.toFixed(1) : "-"
+                            }</td>
+                        </tr>
+                    `
+                      )
+                      .join("")}
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    container.innerHTML = html;
+  }
+
+  // CORREÇÃO 4: Implementar função completa de buscar relatório de usuários
+  async function buscarRelatorioUsuarios() {
+    const tipoUsuario = document.getElementById("filtroTipoUsuario").value;
+
+    try {
+      const token = localStorage.getItem("embryotech_token");
+      const response = await fetch("/api/usuarios", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        let usuarios = await response.json();
+
+        // Filtrar por tipo se especificado
+        if (tipoUsuario === "admin") {
+          usuarios = usuarios.filter((u) => u.is_admin);
+        } else if (tipoUsuario === "user") {
+          usuarios = usuarios.filter((u) => !u.is_admin);
+        }
+
+        exibirResultadosUsuarios(usuarios);
+      } else {
+        const error = await response.json();
+        showError("Erro ao buscar dados de usuários: " + error.message);
+      }
+    } catch (error) {
+      console.error("Erro na busca de usuários:", error);
+      showError("Erro ao buscar dados de usuários: " + error.message);
+    }
+  }
+
+  function exibirResultadosUsuarios(usuarios) {
+    const container = document.getElementById("resultadosUsuariosRelatorio");
+
+    if (!usuarios || usuarios.length === 0) {
+      container.innerHTML =
+        '<div class="empty-state"><p>Nenhum usuário encontrado para os filtros selecionados</p></div>';
+      return;
+    }
+
+    const html = `
+        <div class="relatorio-header">
+            <h4>Resultados dos Usuários (${usuarios.length} registros)</h4>
+        </div>
+        <div class="tabela-container">
+            <table class="tabela-relatorio">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nome de Usuário</th>
+                        <th>Email</th>
+                        <th>Tipo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${usuarios
+                      .map(
+                        (usuario) => `
+                        <tr>
+                            <td>${usuario.id}</td>
+                            <td>${usuario.username}</td>
+                            <td>${usuario.email}</td>
+                            <td><span class="status-${
+                              usuario.is_admin ? "sucesso" : "neutro"
+                            }">
+                                ${
+                                  usuario.is_admin
+                                    ? "Administrador"
+                                    : "Usuário Comum"
+                                }
+                            </span></td>
                         </tr>
                     `
                       )
@@ -1164,6 +1525,130 @@
     }
   }
 
+  // === FUNÇÕES DE EXPORTAÇÃO PDF ===
+
+  // CORREÇÃO 2: Implementar exportação PDF de auditoria
+  async function exportarAuditoriaPDF() {
+    const usuarioId = document.getElementById("filtroUsuario").value;
+    const dataInicio = document.getElementById("dataInicio").value;
+    const dataFim = document.getElementById("dataFim").value;
+
+    try {
+      const token = localStorage.getItem("embryotech_token");
+      let url = "/api/relatorio/auditoria/pdf?";
+
+      const params = [];
+      if (usuarioId) params.push(`usuario_id=${usuarioId}`);
+      if (dataInicio) params.push(`data_inicio=${dataInicio}`);
+      if (dataFim) params.push(`data_fim=${dataFim}`);
+
+      url += params.join("&");
+
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = downloadUrl;
+        link.download = "auditoria_embryotech.pdf";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(downloadUrl);
+
+        showMessage("PDF exportado com sucesso!", "success");
+      } else {
+        const error = await response.json();
+        showError("Erro ao exportar PDF: " + error.message);
+      }
+    } catch (error) {
+      console.error("Erro ao exportar PDF:", error);
+      showError("Erro ao exportar PDF de auditoria");
+    }
+  }
+
+  // CORREÇÃO 3: Implementar exportação PDF de leituras
+  async function exportarLeiturasPDF() {
+    const lote = document.getElementById("filtroLoteRelatorio").value;
+    const dataInicio = document.getElementById("dataInicioLeituras").value;
+    const dataFim = document.getElementById("dataFimLeituras").value;
+
+    try {
+      const token = localStorage.getItem("embryotech_token");
+      let url = "/api/relatorio/leituras/pdf?";
+
+      const params = [];
+      if (lote) params.push(`lote=${encodeURIComponent(lote)}`);
+      if (dataInicio) params.push(`data_inicio=${dataInicio}`);
+      if (dataFim) params.push(`data_fim=${dataFim}`);
+
+      url += params.join("&");
+
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = downloadUrl;
+        link.download = "leituras_embryotech.pdf";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(downloadUrl);
+
+        showMessage("PDF exportado com sucesso!", "success");
+      } else {
+        const error = await response.json();
+        showError("Erro ao exportar PDF: " + error.message);
+      }
+    } catch (error) {
+      console.error("Erro ao exportar PDF:", error);
+      showError("Erro ao exportar PDF de leituras");
+    }
+  }
+
+  // CORREÇÃO 4: Implementar exportação PDF de usuários
+  async function exportarUsuariosPDF() {
+    const tipoUsuario = document.getElementById("filtroTipoUsuario").value;
+
+    try {
+      const token = localStorage.getItem("embryotech_token");
+      let url = "/api/relatorio/usuarios/pdf?";
+
+      if (tipoUsuario) url += `tipo=${tipoUsuario}`;
+
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = downloadUrl;
+        link.download = "usuarios_embryotech.pdf";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(downloadUrl);
+
+        showMessage("PDF exportado com sucesso!", "success");
+      } else {
+        const error = await response.json();
+        showError("Erro ao exportar PDF: " + error.message);
+      }
+    } catch (error) {
+      console.error("Erro ao exportar PDF:", error);
+      showError("Erro ao exportar PDF de usuários");
+    }
+  }
+
   // === OUTRAS FUNÇÕES NECESSÁRIAS ===
 
   async function fetchReadings(lote = "") {
@@ -1195,12 +1680,19 @@
         return dateB - dateA;
       });
 
+      // CORREÇÃO 5: Só atualiza gráficos se um lote específico for selecionado
       if (readings.length > 0) {
         updateLastReading(readings[0]);
-        updateCharts([...readings].reverse());
+        if (lote) {
+          // Só atualiza gráficos se um lote for selecionado
+          updateCharts([...readings].reverse());
+        }
       } else {
         updateLastReading(null);
-        updateCharts([]);
+        if (lote) {
+          // Limpa gráficos se lote selecionado mas sem dados
+          updateCharts([]);
+        }
       }
     } catch (error) {
       console.error("Erro ao buscar leituras:", error);
@@ -1231,10 +1723,17 @@
       loteFilter.addEventListener("change", async () => {
         const loteSelecionado = loteFilter.value;
         const loteLabel = document.getElementById("loteLabel");
-        loteLabel.textContent = loteSelecionado
-          ? `Lote: ${loteSelecionado}`
-          : "Lote: Todos";
-        await fetchReadings(loteSelecionado);
+
+        if (loteSelecionado) {
+          loteLabel.textContent = `Lote: ${loteSelecionado}`;
+          await fetchReadings(loteSelecionado);
+        } else {
+          // CORREÇÃO 5: Limpar gráficos quando "Todos os Lotes" for selecionado
+          loteLabel.textContent =
+            "Lote: Selecione um lote para visualizar os dados";
+          updateCharts([]); // Limpa os gráficos
+          updateLastReading(null); // Limpa a última leitura
+        }
       });
     } catch (error) {
       console.error("Erro ao carregar lotes:", error);
@@ -1251,7 +1750,7 @@
     if (!reading) {
       lastReadingContainer.innerHTML = `
             <div class="reading-data">
-                <p>Nenhuma leitura disponível para o lote selecionado</p>
+                <p>Selecione um lote específico para visualizar a última leitura</p>
             </div>
         `;
       return;
@@ -1271,6 +1770,23 @@
   }
 
   function updateCharts(readings) {
+    if (!readings || readings.length === 0) {
+      // Limpar gráficos
+      tempChart.data.labels = [];
+      tempChart.data.datasets[0].data = [];
+      tempChart.update();
+
+      umidChart.data.labels = [];
+      umidChart.data.datasets[0].data = [];
+      umidChart.update();
+
+      pressChart.data.labels = [];
+      pressChart.data.datasets[0].data = [];
+      pressChart.update();
+
+      return;
+    }
+
     readings.sort(
       (a, b) => new Date(a.data_inicial) - new Date(b.data_inicial)
     );
@@ -1279,41 +1795,14 @@
     const umids = readings.map((r) => r.umidade);
     const presses = readings.map((r) => r.pressao);
 
-    updateChart(
-      tempChart,
-      labels,
-      temps,
-      "Temperatura (°C)",
-      "rgba(255, 99, 132, 0.8)"
-    );
-    updateChart(
-      umidChart,
-      labels,
-      umids,
-      "Umidade (%)",
-      "rgba(54, 162, 235, 0.8)"
-    );
-    updateChart(
-      pressChart,
-      labels,
-      presses,
-      "Pressão (hPa)",
-      "rgba(3, 62, 253, 0.8)"
-    );
+    updateChart(tempChart, labels, temps);
+    updateChart(umidChart, labels, umids);
+    updateChart(pressChart, labels, presses);
   }
 
-  function updateChart(chart, labels, data, label, color) {
+  function updateChart(chart, labels, data) {
     chart.data.labels = labels;
-    chart.data.datasets = [
-      {
-        label: label,
-        data: data,
-        borderColor: color,
-        backgroundColor: color.replace("0.8", "0.2"),
-        tension: 0.1,
-        fill: true,
-      },
-    ];
+    chart.data.datasets[0].data = data;
     chart.update();
   }
 
@@ -1445,22 +1934,6 @@
     }
 
     return date.toLocaleString("pt-BR", options);
-  }
-
-  // Funções de exportação PDF
-  async function exportarAuditoriaPDF() {
-    // Implementar exportação de auditoria
-    showMessage("Exportando PDF...", "success");
-  }
-
-  async function exportarLeiturasPDF() {
-    // Implementar exportação de leituras
-    showMessage("Exportando PDF...", "success");
-  }
-
-  async function buscarRelatorioLeituras() {
-    // Implementar busca de relatório de leituras
-    showMessage("Buscando relatório...", "success");
   }
 </script>
 {% endblock %}
