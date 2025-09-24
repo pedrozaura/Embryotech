@@ -14,7 +14,7 @@ services:
       - DB_PORT=5432
       - DB_NAME=embryotech
 
-      # Chaves de segurança - IMPORTANTE: Altere essas chaves em produção!
+      # Chaves de segurança
       - SECRET_KEY=sua_chave_gerada_com_token_urlsafe_32_docker
       - JWT_SECRET_KEY=sua_chave_gerada_com_token_hex_32_docker
 
@@ -22,12 +22,12 @@ services:
       - FLASK_APP=app.py
       - FLASK_ENV=production
       - DEBUG=False
+      - DOCKER_ENV=true
 
       # Configuração da porta
       - PORT=5001
 
     volumes:
-      # Monta os arquivos estáticos e templates (opcional, já estão na imagem)
       - ./static:/app/static
       - ./templates:/app/templates
       - ./logs:/app/logs
@@ -36,51 +36,14 @@ services:
     networks:
       - minha_network
 
-    # Aguarda até o banco estar disponível (se usar banco local)
-    # depends_on:
-    #   - postgres
+    # Health check para verificar se a aplicação está rodando
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/api/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
-    # Para corrigir problemas de escala, usar servidor Flask
-    # command: ["python", "app.py"]
-
-    # Para produção (depois de corrigir) - Gunicorn
-    command:
-      [
-        "gunicorn",
-        "--bind",
-        "0.0.0.0:5001",
-        "--workers",
-        "1",
-        "--timeout",
-        "120",
-        "--keep-alive",
-        "2",
-        "--access-logfile",
-        "-",
-        "app:app",
-      ]
-
-# Networks devem estar no mesmo nível de 'services', não dentro dele
 networks:
   minha_network:
     external: true
-
-  # OPCIONAL: Use este serviço se quiser um banco PostgreSQL local
-  # Descomente as linhas abaixo se não quiser usar o banco externo
-
-  # postgres:
-  #   image: postgres:15
-  #   container_name: embryotech-postgres
-  #   environment:
-  #     - POSTGRES_DB=embryotech
-  #     - POSTGRES_USER=postgres
-  #     - POSTGRES_PASSWORD=CHESS5558a72
-  #   ports:
-  #     - "5432:5432"
-  #   volumes:
-  #     - postgres_data:/var/lib/postgresql/data
-  #   restart: unless-stopped
-  #   networks:
-  #     - minha_network
-# volumes:
-#   postgres_data:

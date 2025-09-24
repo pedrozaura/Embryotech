@@ -16,6 +16,7 @@ reportlab==4.0.4
 
 # Banco de dados
 SQLAlchemy==2.0.21
+psycopg2-binary==2.9.7  # ← Adicione esta linha
 
 # Utilitários
 python-dotenv==1.0.0

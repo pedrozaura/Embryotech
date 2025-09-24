@@ -338,12 +338,106 @@
 
         <div class="button-group" style="margin-top: 20px">
           <button
+            onclick="abrirFormularioCadastroUsuario()"
+            class="custom-save-btn"
+          >
+            Cadastrar Novo Usuário
+          </button>
+          <button
             onclick="abrirFormularioAlterarSenha()"
             class="custom-save-btn"
           >
             Alterar Senha de Usuário
           </button>
         </div>
+      </div>
+
+      <!-- Formulário de cadastro de novo usuário -->
+      <div
+        id="formCadastroUsuario"
+        style="
+          display: none;
+          margin-top: 30px;
+          border-top: 2px solid #25691b;
+          padding-top: 20px;
+          background-color: #f8f9fa;
+          padding: 20px;
+          border-radius: 8px;
+        "
+      >
+        <h4>Cadastrar Novo Usuário</h4>
+        <form id="cadastroUsuarioForm">
+          <div class="form-group">
+            <label>Nome de Usuário:</label>
+            <input
+              type="text"
+              id="novoUsername"
+              class="form-control"
+              required
+              minlength="3"
+              placeholder="Digite o nome de usuário"
+            />
+          </div>
+
+          <div class="form-group">
+            <label>Email:</label>
+            <input
+              type="email"
+              id="novoEmail"
+              class="form-control"
+              required
+              placeholder="Digite o email do usuário"
+            />
+          </div>
+
+          <div class="form-group">
+            <label>Senha:</label>
+            <input
+              type="password"
+              id="novoPasswordUsuario"
+              class="form-control"
+              required
+              minlength="6"
+              placeholder="Digite a senha (mínimo 6 caracteres)"
+            />
+          </div>
+
+          <div class="form-group">
+            <label>Confirmar Senha:</label>
+            <input
+              type="password"
+              id="confirmarPasswordUsuario"
+              class="form-control"
+              required
+              minlength="6"
+              placeholder="Confirme a senha"
+            />
+          </div>
+
+          <div class="form-group">
+            <label style="display: flex; align-items: center">
+              <input
+                type="checkbox"
+                id="novoUsuarioAdmin"
+                style="margin-right: 8px; transform: scale(1.2)"
+              />
+              Tornar este usuário administrador
+            </label>
+          </div>
+
+          <div class="button-group">
+            <button type="submit" class="custom-save-btn">
+              Cadastrar Usuário
+            </button>
+            <button
+              type="button"
+              onclick="cancelarCadastroUsuario()"
+              class="custom-close-btn"
+            >
+              Cancelar
+            </button>
+          </div>
+        </form>
       </div>
 
       <!-- Formulário de alteração de senha -->
@@ -1434,11 +1528,21 @@
   }
 
   function setupUsuariosModal() {
-    const form = document.getElementById("alterarSenhaForm");
-    if (form) {
-      form.onsubmit = async function (e) {
+    // Configurar formulário de alteração de senha (mantém funcionalidade existente)
+    const formAlterarSenha = document.getElementById("alterarSenhaForm");
+    if (formAlterarSenha) {
+      formAlterarSenha.onsubmit = async function (e) {
         e.preventDefault();
         await alterarSenhaUsuario(e);
+      };
+    }
+
+    // Configurar formulário de cadastro de usuário (NOVO)
+    const formCadastroUsuario = document.getElementById("cadastroUsuarioForm");
+    if (formCadastroUsuario) {
+      formCadastroUsuario.onsubmit = async function (e) {
+        e.preventDefault();
+        await cadastrarNovoUsuario(e);
       };
     }
   }
@@ -1535,6 +1639,149 @@
       option.textContent = `${usuario.username} (${usuario.email})`;
       select.appendChild(option);
     });
+  }
+
+  // === FUNÇÕES DE CADASTRO DE USUÁRIO (NOVAS) ===
+
+  function abrirFormularioCadastroUsuario() {
+    const form = document.getElementById("formCadastroUsuario");
+    if (form) {
+      form.style.display = "block";
+      // Limpar campos
+      document.getElementById("novoUsername").value = "";
+      document.getElementById("novoEmail").value = "";
+      document.getElementById("novoPasswordUsuario").value = "";
+      document.getElementById("confirmarPasswordUsuario").value = "";
+      document.getElementById("novoUsuarioAdmin").checked = false;
+
+      // Focar no primeiro campo
+      document.getElementById("novoUsername").focus();
+    }
+  }
+
+  function cancelarCadastroUsuario() {
+    const form = document.getElementById("formCadastroUsuario");
+    if (form) {
+      form.style.display = "none";
+    }
+  }
+
+  async function cadastrarNovoUsuario(e) {
+    const username = document.getElementById("novoUsername").value.trim();
+    const email = document.getElementById("novoEmail").value.trim();
+    const password = document.getElementById("novoPasswordUsuario").value;
+    const confirmarPassword = document.getElementById(
+      "confirmarPasswordUsuario"
+    ).value;
+    const isAdmin = document.getElementById("novoUsuarioAdmin").checked;
+
+    // Validações
+    if (!username || !email || !password) {
+      showError("Preencha todos os campos obrigatórios");
+      return;
+    }
+
+    if (username.length < 3) {
+      showError("O nome de usuário deve ter pelo menos 3 caracteres");
+      return;
+    }
+
+    if (password.length < 6) {
+      showError("A senha deve ter pelo menos 6 caracteres");
+      return;
+    }
+
+    if (password !== confirmarPassword) {
+      showError("As senhas não coincidem");
+      return;
+    }
+
+    // Validar formato do email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      showError("Digite um email válido");
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem("embryotech_token");
+
+      // Primeiro, criar o usuário
+      const response = await fetch("/api/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          username: username,
+          email: email,
+          password: password,
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+
+        // Se deve ser admin, promover após criação
+        if (isAdmin) {
+          // Primeiro buscar o ID do usuário criado
+          const usuariosResponse = await fetch("/api/usuarios", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+
+          if (usuariosResponse.ok) {
+            const usuarios = await usuariosResponse.json();
+            const usuarioCriado = usuarios.find((u) => u.username === username);
+
+            if (usuarioCriado) {
+              // Promover a admin
+              const adminResponse = await fetch(
+                `/api/usuarios/${usuarioCriado.id}/admin`,
+                {
+                  method: "PUT",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                  },
+                  body: JSON.stringify({ is_admin: true }),
+                }
+              );
+
+              if (!adminResponse.ok) {
+                console.warn("Usuário criado, mas falha ao promover a admin");
+              }
+            }
+          }
+        }
+
+        showMessage("Usuário cadastrado com sucesso!", "success");
+
+        // Recarregar lista de usuários e fechar formulário
+        setTimeout(() => {
+          carregarListaUsuarios();
+          cancelarCadastroUsuario();
+        }, 1500);
+      } else {
+        const error = await response.json();
+        if (
+          response.status === 400 &&
+          error.message.includes("Username already exists")
+        ) {
+          showError("Este nome de usuário já existe. Escolha outro.");
+        } else if (
+          response.status === 400 &&
+          error.message.includes("Email already exists")
+        ) {
+          showError("Este email já está cadastrado. Use outro email.");
+        } else {
+          showError("Erro ao cadastrar usuário: " + error.message);
+        }
+      }
+    } catch (error) {
+      console.error("Erro ao cadastrar usuário:", error);
+      showError("Erro ao cadastrar usuário: " + error.message);
+    }
   }
 
   function abrirFormularioAlterarSenha() {
@@ -2039,4 +2286,57 @@
     return date.toLocaleString("pt-BR", options);
   }
 </script>
+
+<style>
+  /* Estilos adicionais para o formulário de cadastro */
+  #formCadastroUsuario {
+    background-color: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    margin-top: 20px;
+    border-top: 2px solid #25691b;
+  }
+
+  #formCadastroUsuario h4 {
+    color: #25691b;
+    margin-bottom: 20px;
+    font-size: 1.2rem;
+    font-weight: 600;
+  }
+
+  #formCadastroUsuario .form-control {
+    background-color: white;
+    border: 2px solid #ddd;
+    transition: border-color 0.3s;
+  }
+
+  #formCadastroUsuario .form-control:focus {
+    border-color: #25691b;
+    outline: none;
+    box-shadow: 0 0 5px rgba(37, 105, 27, 0.3);
+  }
+
+  #formCadastroUsuario .form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #25691b;
+    font-size: 1rem;
+  }
+
+  #formCadastroUsuario .form-group label input[type="checkbox"] {
+    display: inline;
+    margin-bottom: 0;
+    margin-right: 8px;
+    transform: scale(1.2);
+  }
+
+  @media (max-width: 768px) {
+    #formCadastroUsuario {
+      padding: 15px;
+      margin-top: 15px;
+    }
+  }
+</style>
+
 {% endblock %}
