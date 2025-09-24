@@ -32,11 +32,163 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 # Configuração da porta
 PORT = int(os.environ.get('PORT', 5001))  # Padrão 5001, mas pode ser sobrescrito
 
+# ==================== CONFIGURAÇÕES DO SWAGGER ====================
+
+# Configuração principal do Swagger
+SWAGGER_CONFIG = {
+    "headers": [],
+    "specs": [
+        {
+            "endpoint": 'apispec_1',
+            "route": '/apispec_1.json',
+            "rule_filter": lambda rule: True,  # Documenta todas as rotas
+            "model_filter": lambda tag: True,  # Inclui todos os modelos
+        }
+    ],
+    "static_url_path": "/flasgger_static",
+    "swagger_ui": True,
+    "specs_route": "/swagger/",  # URL principal da documentação
+}
+
+# Template principal do Swagger
+SWAGGER_TEMPLATE = {
+    "swagger": "2.0",
+    "info": {
+        "title": "Embryotech API",
+        "description": """
+        ## Sistema de Monitoramento de Embriões
+        
+        Esta API fornece funcionalidades completas para:
+        
+        - **Autenticação**: Login/logout com tokens JWT
+        - **Gestão de Usuários**: Registro, listagem e administração de usuários
+        - **Leituras**: CRUD completo para leituras de sensores (temperatura, umidade, pressão)
+        - **Parâmetros**: Gestão de parâmetros ideais por empresa e lote
+        - **Relatórios**: Geração de relatórios em PDF
+        - **Auditoria**: Logs completos de todas as ações do sistema
+        
+        ### Como Usar
+        
+        1. **Registre-se** ou faça **login** para obter um token JWT
+        2. **Clique em "Authorize"** e insira: `Bearer {seu_token}`
+        3. **Teste os endpoints** diretamente nesta interface
+        
+        ### Permissões
+        
+        - **Usuários comuns**: Podem gerenciar leituras e visualizar dados
+        - **Administradores**: Acesso completo a todas as funcionalidades
+        """,
+    #    "contact": {
+    #        "responsibleOrganization": "Outside Agrotech",
+    #        "responsibleDeveloper": "Equipe de Desenvolvimento",
+    #        "email": "suporte@outsideagro.tech",
+    #        "url": "https://outsideagro.tech",
+    #    },
+        "version": "2.0.0"
+    },
+    "host": f"localhost:{PORT}",
+    "basePath": "/",
+    "schemes": [
+        "https"
+    ],
+    "consumes": [
+        "application/json"
+    ],
+    "produces": [
+        "application/json",
+        "application/pdf"
+    ],
+    "securityDefinitions": {
+        "Bearer": {
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header",
+            "description": "Token de autorização JWT. Formato: 'Bearer {seu_token_jwt_aqui}'"
+        }
+    },
+    "tags": [
+        {
+            "name": "Sistema",
+            "description": "Endpoints de informações do sistema"
+        },
+        {
+            "name": "Autenticação",
+            "description": "Login, logout e gestão de tokens JWT"
+        },
+        {
+            "name": "Usuários",
+            "description": "Gestão de usuários do sistema"
+        },
+        {
+            "name": "Leituras",
+            "description": "CRUD de leituras de sensores (temperatura, umidade, pressão)"
+        },
+        {
+            "name": "Parâmetros",
+            "description": "Gestão de parâmetros ideais por empresa e lote"
+        },
+        {
+            "name": "Logs",
+            "description": "Sistema de auditoria e logs de atividades"
+        },
+        {
+            "name": "Relatórios",
+            "description": "Geração de relatórios em PDF"
+        }
+    ],
+    "definitions": {
+        "User": {
+            "type": "object",
+            "properties": {
+                "id": {"type": "integer", "description": "ID único do usuário"},
+                "username": {"type": "string", "description": "Nome de usuário único"},
+                "email": {"type": "string", "format": "email", "description": "Email do usuário"},
+                "is_admin": {"type": "boolean", "description": "Se o usuário possui privilégios administrativos"}
+            }
+        },
+        "Leitura": {
+            "type": "object",
+            "properties": {
+                "id": {"type": "integer", "description": "ID único da leitura"},
+                "temperatura": {"type": "number", "format": "float", "description": "Temperatura em graus Celsius"},
+                "umidade": {"type": "number", "format": "float", "description": "Umidade relativa em porcentagem"},
+                "pressao": {"type": "number", "format": "float", "description": "Pressão atmosférica em hPa"},
+                "lote": {"type": "string", "description": "Identificador do lote"},
+                "data_inicial": {"type": "string", "format": "date-time", "description": "Data/hora inicial da leitura"},
+                "data_final": {"type": "string", "format": "date-time", "description": "Data/hora final da leitura"}
+            }
+        },
+        "Parametro": {
+            "type": "object",
+            "properties": {
+                "id": {"type": "integer", "description": "ID único do parâmetro"},
+                "empresa": {"type": "string", "description": "Nome da empresa"},
+                "lote": {"type": "string", "description": "Identificador do lote"},
+                "temp_ideal": {"type": "number", "format": "float", "description": "Temperatura ideal em °C"},
+                "umid_ideal": {"type": "number", "format": "float", "description": "Umidade ideal em %"},
+                "pressao_ideal": {"type": "number", "format": "float", "description": "Pressão ideal em hPa"},
+                "lumens": {"type": "number", "format": "float", "description": "Iluminação em lumens"},
+                "id_sala": {"type": "string", "description": "Identificador da sala"},
+                "estagio_ovo": {"type": "string", "description": "Estágio de desenvolvimento do ovo"}
+            }
+        },
+        "Error": {
+            "type": "object",
+            "properties": {
+                "message": {"type": "string", "description": "Mensagem de erro"}
+            }
+        }
+    }
+}
+
+# ==================== CRIAÇÃO DA APLICAÇÃO ====================
+
 app = Flask(__name__,
           static_folder=os.path.join(basedir, 'static'),
           template_folder=os.path.join(basedir, 'templates'))
 
 CORS(app)
+
 @app.after_request
 def after_request(response):
     response.headers.add('Access-Control-Allow-Origin', '*')
@@ -46,62 +198,22 @@ def after_request(response):
 
 app.config.from_object(Config)
 
-# Configuração do Swagger
-swagger_config = {
-    "headers": [],
-    "specs": [
-        {
-            "endpoint": 'apispec_1',
-            "route": '/apispec_1.json',
-            "rule_filter": lambda rule: True,
-            "model_filter": lambda tag: True,
-        }
-    ],
-    "static_url_path": "/flasgger_static",
-    "swagger_ui": True,
-    "specs_route": "/swagger/"
-}
-
-swagger_template = {
-    "swagger": "2.0",
-    "info": {
-        "title": "Embryotech API",
-        "description": "Sistema de Monitoramento de Embriões - API completa para gerenciamento de leituras, parâmetros e usuários",
-        "contact": {
-            "responsibleOrganization": "Embryotech",
-            "responsibleDeveloper": "Equipe Embryotech",
-            "email": "suporte@embryotech.com",
-            "url": "https://embryotech.com",
-        },
-        "version": "2.0.0"
-    },
-    "host": f"localhost:{PORT}",
-    "basePath": "/",
-    "schemes": [
-        "http",
-        "https"
-    ],
-    "operationId": "get_my_ip",
-    "securityDefinitions": {
-        "Bearer": {
-            "type": "apiKey",
-            "name": "Authorization",
-            "in": "header",
-            "description": "Token de autorização JWT. Formato: 'Bearer {token}'"
-        }
-    }
-}
-
-swagger = Swagger(app, config=swagger_config, template=swagger_template)
+# Inicializar Swagger
+swagger = Swagger(app, config=SWAGGER_CONFIG, template=SWAGGER_TEMPLATE)
 
 db.init_app(app)
 migrate.init_app(app, db)
 
+# ==================== MIDDLEWARES E DECORADORES ====================
+
 # Middleware para logging automático
 @app.before_request
 def before_request():
-    # Registrar acesso apenas se não for um endpoint de API ou static
-    if not request.endpoint or request.endpoint.startswith('static'):
+    """Middleware para logging automático de acessos"""
+    # Pular documentação do Swagger e arquivos estáticos
+    if (not request.endpoint or 
+        request.endpoint.startswith('static') or
+        request.endpoint.startswith('flasgger')):
         return
     
     # Se for um endpoint de página (não API), registrar acesso
@@ -126,6 +238,7 @@ def before_request():
 
 # Decorator para rotas que requerem autenticação
 def token_required(f):
+    """Decorator para autenticação via token JWT"""
     @wraps(f)
     def decorated(*args, **kwargs):
         token = None
@@ -171,43 +284,44 @@ def dashboard():
     """Dashboard principal - requer autenticação via JavaScript"""
     return render_template('dashboard.html')
 
+# Rota para redirecionar para a documentação
+@app.route('/docs')
+@app.route('/api-docs')
+def redirect_to_swagger():
+    """Redireciona para a documentação Swagger"""
+    return redirect('/swagger/')
+
 # ==================== ROTAS DE API COM DOCUMENTAÇÃO SWAGGER ====================
 
 @app.route('/api/')
 @log_activity("API_STATUS_CHECK")
+@swag_from({
+    'tags': ['Sistema'],
+    'summary': 'Status da API',
+    'description': 'Endpoint de status da API e informações do sistema',
+    'responses': {
+        200: {
+            'description': 'Status da API e informações do sistema',
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'mensagem': {'type': 'string'},
+                    'data_hora': {'type': 'string'},
+                    'PORTA': {'type': 'integer'},
+                    'fuso_horario': {'type': 'string'},
+                    'swagger_ui': {'type': 'string'},
+                    'versao': {'type': 'string'}
+                }
+            }
+        },
+        500: {
+            'description': 'Erro interno do servidor',
+            'schema': {'$ref': '#/definitions/Error'}
+        }
+    }
+})
 def api_status():
-    """
-    Status da API
-    ---
-    tags:
-      - Sistema
-    responses:
-      200:
-        description: Status da API e informações do sistema
-        schema:
-          type: object
-          properties:
-            mensagem:
-              type: string
-              example: "Bem-vindo ao Backend do Sistema Embryotech"
-            data_hora:
-              type: string
-              example: "2024-01-15 14:30:00"
-            PORTA:
-              type: integer
-              example: 5001
-            fuso_horario:
-              type: string
-              example: "GMT-3"
-      500:
-        description: Erro interno do servidor
-        schema:
-          type: object
-          properties:
-            erro:
-              type: string
-              example: "Erro ao recuperar hora: conexão com BD falhou"
-    """
+    """Endpoint de status da API"""
     try:
         data_hora_db = db.session.execute(text("SELECT CURRENT_TIMESTAMP")).scalar()
         data_hora_ajustada = data_hora_db - timedelta(hours=3)
@@ -215,60 +329,40 @@ def api_status():
             "mensagem": "Bem-vindo ao Backend do Sistema Embryotech",
             "data_hora": data_hora_ajustada.strftime("%Y-%m-%d %H:%M:%S"),
             "PORTA": PORT,
-            "fuso_horario": "GMT-3"
+            "fuso_horario": "GMT-3",
+            "swagger_ui": f"http://localhost:{PORT}/swagger/",
+            "versao": "2.0.0"
         })
     except Exception as e:
         return jsonify({"erro": f"Erro ao recuperar hora: {str(e)}"}), 500
 
 @app.route('/api/register', methods=['POST'])
 @log_activity("USUARIO_REGISTRO")
+@swag_from({
+    'tags': ['Usuários'],
+    'summary': 'Registrar usuário',
+    'description': 'Registrar novo usuário no sistema',
+    'parameters': [{
+        'name': 'body',
+        'in': 'body',
+        'required': True,
+        'schema': {
+            'type': 'object',
+            'required': ['username', 'password', 'email'],
+            'properties': {
+                'username': {'type': 'string', 'example': 'joao123', 'description': 'Nome de usuário único'},
+                'password': {'type': 'string', 'example': 'senha123', 'description': 'Senha (mínimo 6 caracteres)'},
+                'email': {'type': 'string', 'format': 'email', 'example': 'joao@email.com', 'description': 'Email válido'}
+            }
+        }
+    }],
+    'responses': {
+        201: {'description': 'Usuário registrado com sucesso'},
+        400: {'description': 'Dados inválidos ou incompletos'}
+    }
+})
 def api_register():
-    """
-    Registrar novo usuário
-    ---
-    tags:
-      - Usuários
-    parameters:
-      - name: body
-        in: body
-        required: true
-        schema:
-          type: object
-          properties:
-            username:
-              type: string
-              example: "joao123"
-              description: Nome de usuário único
-            password:
-              type: string
-              example: "senha123"
-              description: Senha (mínimo 6 caracteres)
-            email:
-              type: string
-              example: "joao@email.com"
-              description: Email válido
-          required:
-            - username
-            - password
-            - email
-    responses:
-      201:
-        description: Usuário registrado com sucesso
-        schema:
-          type: object
-          properties:
-            message:
-              type: string
-              example: "User registered successfully!"
-      400:
-        description: Dados inválidos ou incompletos
-        schema:
-          type: object
-          properties:
-            message:
-              type: string
-              example: "Missing required fields!"
-    """
+    """Registrar novo usuário"""
     data = request.get_json()
     
     if not data or not data.get('username') or not data.get('password') or not data.get('email'):
@@ -297,45 +391,40 @@ def api_register():
     return jsonify({'message': 'User registered successfully!'}), 201
 
 @app.route('/api/login', methods=['POST'])
+@swag_from({
+    'tags': ['Autenticação'],
+    'summary': 'Login',
+    'description': 'Fazer login no sistema e obter token JWT',
+    'parameters': [{
+        'name': 'body',
+        'in': 'body',
+        'required': True,
+        'schema': {
+            'type': 'object',
+            'required': ['username', 'password'],
+            'properties': {
+                'username': {'type': 'string', 'example': 'joao123'},
+                'password': {'type': 'string', 'example': 'senha123'}
+            }
+        }
+    }],
+    'responses': {
+        200: {
+            'description': 'Login realizado com sucesso',
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'token': {'type': 'string', 'description': 'Token JWT para autenticação'},
+                    'user': {'$ref': '#/definitions/User'}
+                }
+            }
+        },
+        400: {'description': 'Campos obrigatórios não informados'},
+        401: {'description': 'Credenciais inválidas'}
+    }
+})
 def api_login():
-    """
-    Login de usuário
-    ---
-    tags:
-      - Autenticação
-    parameters:
-      - name: body
-        in: body
-        required: true
-        schema:
-          type: object
-          properties:
-            username:
-              type: string
-              example: "joao123"
-              description: Nome de usuário
-            password:
-              type: string
-              example: "senha123"
-              description: Senha do usuário
-          required:
-            - username
-            - password
-    responses:
-      200:
-        description: Login realizado com sucesso
-        schema:
-          type: object
-          properties:
-            token:
-              type: string
-              example: "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
-              description: Token JWT para autenticação
-      400:
-        description: Campos obrigatórios não informados
-      401:
-        description: Credenciais inválidas
-    """
+    """Login de usuário"""
     data = request.get_json()
     
     if not data or not data.get('username') or not data.get('password'):
@@ -351,112 +440,60 @@ def api_login():
     token = user.generate_auth_token(app.config['JWT_SECRET_KEY'])
     log_login_attempt(data['username'], True)
     
-    return jsonify({'token': token}), 200
+    return jsonify({
+        'token': token,
+        'user': {
+            'id': user.id,
+            'username': user.username,
+            'is_admin': user.is_admin
+        }
+    }), 200
 
 @app.route('/api/logout', methods=['POST'])
 @token_required
 @log_activity("LOGOUT")
+@swag_from({
+    'tags': ['Autenticação'],
+    'summary': 'Logout',
+    'description': 'Fazer logout do sistema',
+    'security': [{'Bearer': []}],
+    'responses': {
+        200: {'description': 'Logout realizado com sucesso'},
+        401: {'description': 'Token inválido ou ausente'}
+    }
+})
 def api_logout(current_user):
-    """
-    Logout de usuário
-    ---
-    tags:
-      - Autenticação
-    security:
-      - Bearer: []
-    responses:
-      200:
-        description: Logout realizado com sucesso
-        schema:
-          type: object
-          properties:
-            message:
-              type: string
-              example: "Logout realizado com sucesso"
-      401:
-        description: Token inválido ou ausente
-    """
+    """Logout de usuário"""
     log_logout(current_user)
     return jsonify({'message': 'Logout realizado com sucesso'}), 200
 
 @app.route('/api/leituras', methods=['POST'])
 @token_required
 @log_activity("CRIAR_LEITURAS")
+@swag_from({
+    'tags': ['Leituras'],
+    'summary': 'Criar leituras',
+    'description': 'Criar novas leituras de embrião (suporte a múltiplas leituras)',
+    'security': [{'Bearer': []}],
+    'parameters': [{
+        'name': 'body',
+        'in': 'body',
+        'required': True,
+        'schema': {
+            'oneOf': [
+                {'$ref': '#/definitions/Leitura'},
+                {'type': 'array', 'items': {'$ref': '#/definitions/Leitura'}}
+            ]
+        }
+    }],
+    'responses': {
+        201: {'description': 'Leituras criadas com sucesso'},
+        400: {'description': 'Dados inválidos'},
+        401: {'description': 'Token inválido ou ausente'}
+    }
+})
 def api_criar_leitura(current_user):
-    """
-    Criar novas leituras de embrião
-    ---
-    tags:
-      - Leituras
-    security:
-      - Bearer: []
-    parameters:
-      - name: body
-        in: body
-        required: true
-        schema:
-          oneOf:
-            - type: object
-              properties:
-                umidade:
-                  type: number
-                  example: 65.5
-                  description: Umidade relativa (%)
-                temperatura:
-                  type: number
-                  example: 37.8
-                  description: Temperatura (°C)
-                pressao:
-                  type: number
-                  example: 1013.2
-                  description: Pressão atmosférica (hPa)
-                lote:
-                  type: string
-                  example: "LOTE_001"
-                  description: Identificador do lote
-                data_inicial:
-                  type: string
-                  format: date-time
-                  example: "2024-01-15T10:00:00"
-                data_final:
-                  type: string
-                  format: date-time
-                  example: "2024-01-15T11:00:00"
-            - type: array
-              items:
-                type: object
-                properties:
-                  umidade:
-                    type: number
-                  temperatura:
-                    type: number
-                  pressao:
-                    type: number
-                  lote:
-                    type: string
-                  data_inicial:
-                    type: string
-                    format: date-time
-                  data_final:
-                    type: string
-                    format: date-time
-    responses:
-      201:
-        description: Leituras criadas com sucesso
-        schema:
-          type: object
-          properties:
-            message:
-              type: string
-              example: "2 leituras criadas com sucesso"
-            quantidade:
-              type: integer
-              example: 2
-      400:
-        description: Dados inválidos
-      401:
-        description: Token inválido ou ausente
-    """
+    """Criar novas leituras de embrião (suporte a múltiplas leituras)"""
     try:
         if not request.is_json:
             return jsonify({'message': 'O corpo da requisição deve ser JSON'}), 400
@@ -496,55 +533,32 @@ def api_criar_leitura(current_user):
 @app.route('/api/leituras', methods=['GET'])
 @token_required
 @log_activity("LISTAR_LEITURAS")
+@swag_from({
+    'tags': ['Leituras'],
+    'summary': 'Listar leituras',
+    'description': 'Listar leituras de embriões com filtro opcional por lote',
+    'security': [{'Bearer': []}],
+    'parameters': [{
+        'name': 'lote',
+        'in': 'query',
+        'type': 'string',
+        'required': False,
+        'description': 'Filtrar por lote específico',
+        'example': 'LOTE_001'
+    }],
+    'responses': {
+        200: {
+            'description': 'Lista de leituras',
+            'schema': {
+                'type': 'array',
+                'items': {'$ref': '#/definitions/Leitura'}
+            }
+        },
+        401: {'description': 'Token inválido ou ausente'}
+    }
+})
 def api_listar_leituras(current_user):
-    """
-    Listar leituras de embriões
-    ---
-    tags:
-      - Leituras
-    security:
-      - Bearer: []
-    parameters:
-      - name: lote
-        in: query
-        type: string
-        required: false
-        description: Filtrar por lote específico
-        example: "LOTE_001"
-    responses:
-      200:
-        description: Lista de leituras
-        schema:
-          type: array
-          items:
-            type: object
-            properties:
-              id:
-                type: integer
-                example: 1
-              umidade:
-                type: number
-                example: 65.5
-              temperatura:
-                type: number
-                example: 37.8
-              pressao:
-                type: number
-                example: 1013.2
-              lote:
-                type: string
-                example: "LOTE_001"
-              data_inicial:
-                type: string
-                format: date-time
-                example: "2024-01-15T10:00:00"
-              data_final:
-                type: string
-                format: date-time
-                example: "2024-01-15T11:00:00"
-      401:
-        description: Token inválido ou ausente
-    """
+    """Listar todas as leituras de embriões"""
     lote = request.args.get('lote')
     
     query = Leitura.query
@@ -567,52 +581,23 @@ def api_listar_leituras(current_user):
 @app.route('/api/leituras/<int:leitura_id>', methods=['PUT'])
 @token_required
 @log_activity("ATUALIZAR_LEITURA")
+@swag_from({
+    'tags': ['Leituras'],
+    'summary': 'Atualizar leitura',
+    'description': 'Atualizar uma leitura existente',
+    'security': [{'Bearer': []}],
+    'parameters': [
+        {'name': 'leitura_id', 'in': 'path', 'type': 'integer', 'required': True},
+        {'name': 'body', 'in': 'body', 'required': True, 'schema': {'$ref': '#/definitions/Leitura'}}
+    ],
+    'responses': {
+        200: {'description': 'Leitura atualizada com sucesso'},
+        404: {'description': 'Leitura não encontrada'},
+        401: {'description': 'Token inválido ou ausente'}
+    }
+})
 def api_atualizar_leitura(current_user, leitura_id):
-    """
-    Atualizar uma leitura existente
-    ---
-    tags:
-      - Leituras
-    security:
-      - Bearer: []
-    parameters:
-      - name: leitura_id
-        in: path
-        type: integer
-        required: true
-        description: ID da leitura a ser atualizada
-      - name: body
-        in: body
-        required: true
-        schema:
-          type: object
-          properties:
-            umidade:
-              type: number
-              example: 66.0
-            temperatura:
-              type: number
-              example: 38.0
-            pressao:
-              type: number
-              example: 1014.0
-            lote:
-              type: string
-              example: "LOTE_001_MOD"
-            data_inicial:
-              type: string
-              format: date-time
-            data_final:
-              type: string
-              format: date-time
-    responses:
-      200:
-        description: Leitura atualizada com sucesso
-      404:
-        description: Leitura não encontrada
-      401:
-        description: Token inválido ou ausente
-    """
+    """Atualizar uma leitura existente"""
     leitura = Leitura.query.get(leitura_id)
     if not leitura:
         return jsonify({'message': 'Leitura não encontrada'}), 404
@@ -642,28 +627,20 @@ def api_atualizar_leitura(current_user, leitura_id):
 @app.route('/api/leituras/<int:leitura_id>', methods=['DELETE'])
 @token_required
 @log_activity("DELETAR_LEITURA")
+@swag_from({
+    'tags': ['Leituras'],
+    'summary': 'Deletar leitura',
+    'description': 'Deletar uma leitura existente',
+    'security': [{'Bearer': []}],
+    'parameters': [{'name': 'leitura_id', 'in': 'path', 'type': 'integer', 'required': True}],
+    'responses': {
+        200: {'description': 'Leitura deletada com sucesso'},
+        404: {'description': 'Leitura não encontrada'},
+        401: {'description': 'Token inválido ou ausente'}
+    }
+})
 def api_deletar_leitura(current_user, leitura_id):
-    """
-    Deletar uma leitura
-    ---
-    tags:
-      - Leituras
-    security:
-      - Bearer: []
-    parameters:
-      - name: leitura_id
-        in: path
-        type: integer
-        required: true
-        description: ID da leitura a ser deletada
-    responses:
-      200:
-        description: Leitura deletada com sucesso
-      404:
-        description: Leitura não encontrada
-      401:
-        description: Token inválido ou ausente
-    """
+    """Deletar uma leitura existente"""
     leitura = Leitura.query.get(leitura_id)
     if not leitura:
         return jsonify({'message': 'Leitura não encontrada'}), 404
@@ -684,76 +661,26 @@ def api_deletar_leitura(current_user, leitura_id):
 @app.route('/api/parametros', methods=['POST'])
 @token_required
 @log_activity("CRIAR_PARAMETRO")
+@swag_from({
+    'tags': ['Parâmetros'],
+    'summary': 'Criar parâmetros',
+    'description': 'Criar novo conjunto de parâmetros ideais (apenas administradores)',
+    'security': [{'Bearer': []}],
+    'parameters': [{
+        'name': 'body',
+        'in': 'body',
+        'required': True,
+        'schema': {'$ref': '#/definitions/Parametro'}
+    }],
+    'responses': {
+        201: {'description': 'Parâmetro criado com sucesso'},
+        403: {'description': 'Acesso negado (apenas administradores)'},
+        400: {'description': 'Dados inválidos ou incompletos'},
+        401: {'description': 'Token inválido ou ausente'}
+    }
+})
 def api_criar_parametro(current_user):
-    """
-    Criar conjunto de parâmetros ideais
-    ---
-    tags:
-      - Parâmetros
-    security:
-      - Bearer: []
-    parameters:
-      - name: body
-        in: body
-        required: true
-        schema:
-          type: object
-          properties:
-            empresa:
-              type: string
-              example: "Embryotech Inc."
-              description: Nome da empresa
-            lote:
-              type: string
-              example: "LOTE_001"
-              description: Identificador do lote
-            temp_ideal:
-              type: number
-              example: 37.8
-              description: Temperatura ideal (°C)
-            umid_ideal:
-              type: number
-              example: 65.0
-              description: Umidade ideal (%)
-            pressao_ideal:
-              type: number
-              example: 1013.2
-              description: Pressão ideal (hPa)
-            lumens:
-              type: number
-              example: 1200
-              description: Iluminação em lumens
-            id_sala:
-              type: string
-              example: "SALA_A1"
-              description: Identificador da sala
-            estagio_ovo:
-              type: string
-              example: "incubacao_inicial"
-              description: Estágio do desenvolvimento do ovo
-          required:
-            - empresa
-            - lote
-            - temp_ideal
-            - umid_ideal
-    responses:
-      201:
-        description: Parâmetro criado com sucesso
-        schema:
-          type: object
-          properties:
-            message:
-              type: string
-              example: "Parâmetro criado com sucesso!"
-            parametro:
-              type: object
-      403:
-        description: Acesso negado (apenas administradores)
-      400:
-        description: Dados inválidos ou incompletos
-      401:
-        description: Token inválido ou ausente
-    """
+    """Criar novo conjunto de parâmetros ideais"""
     if not current_user.is_admin:
         log_crud_operation(current_user, 'parametros', 'CREATE_DENIED', dados={'motivo': 'nao_admin'})
         return jsonify({'message': 'Acesso negado!'}), 403
@@ -791,27 +718,19 @@ def api_criar_parametro(current_user):
 @app.route('/api/empresas', methods=['GET'])
 @token_required
 @log_activity("LISTAR_EMPRESAS")
+@swag_from({
+    'tags': ['Parâmetros'],
+    'summary': 'Listar empresas',
+    'description': 'Obter lista de empresas cadastradas (apenas administradores)',
+    'security': [{'Bearer': []}],
+    'responses': {
+        200: {'description': 'Lista de empresas'},
+        403: {'description': 'Acesso negado (apenas administradores)'},
+        401: {'description': 'Token inválido ou ausente'}
+    }
+})
 def api_get_empresas(current_user):
-    """
-    Obter lista de empresas cadastradas
-    ---
-    tags:
-      - Parâmetros
-    security:
-      - Bearer: []
-    responses:
-      200:
-        description: Lista de empresas
-        schema:
-          type: array
-          items:
-            type: string
-          example: ["Embryotech Inc.", "Avícola XYZ"]
-      403:
-        description: Acesso negado (apenas administradores)
-      401:
-        description: Token inválido ou ausente
-    """
+    """Obter lista de empresas cadastradas"""
     if not current_user.is_admin:
         return jsonify({'message': 'Acesso negado!'}), 403
     
@@ -821,32 +740,19 @@ def api_get_empresas(current_user):
 @app.route('/api/lotes', methods=['GET'])
 @token_required
 @log_activity("LISTAR_LOTES")
+@swag_from({
+    'tags': ['Parâmetros'],
+    'summary': 'Listar lotes',
+    'description': 'Obter lista de lotes com filtro opcional por empresa',
+    'security': [{'Bearer': []}],
+    'parameters': [{'name': 'empresa', 'in': 'query', 'type': 'string', 'required': False}],
+    'responses': {
+        200: {'description': 'Lista de lotes'},
+        401: {'description': 'Token inválido ou ausente'}
+    }
+})
 def api_get_lotes(current_user):
-    """
-    Obter lista de lotes
-    ---
-    tags:
-      - Parâmetros
-    security:
-      - Bearer: []
-    parameters:
-      - name: empresa
-        in: query
-        type: string
-        required: false
-        description: Filtrar lotes por empresa
-        example: "Embryotech Inc."
-    responses:
-      200:
-        description: Lista de lotes
-        schema:
-          type: array
-          items:
-            type: string
-          example: ["LOTE_001", "LOTE_002", "LOTE_003"]
-      401:
-        description: Token inválido ou ausente
-    """
+    """Obter lista de todos os lotes (ou filtrado por empresa)"""
     empresa = request.args.get('empresa')
     
     query = db.session.query(Parametro.lote).distinct()
@@ -859,60 +765,24 @@ def api_get_lotes(current_user):
 @app.route('/api/parametros', methods=['GET'])
 @token_required
 @log_activity("BUSCAR_PARAMETROS")
+@swag_from({
+    'tags': ['Parâmetros'],
+    'summary': 'Buscar parâmetros',
+    'description': 'Buscar parâmetros por empresa e lote (apenas administradores)',
+    'security': [{'Bearer': []}],
+    'parameters': [
+        {'name': 'empresa', 'in': 'query', 'type': 'string', 'required': True},
+        {'name': 'lote', 'in': 'query', 'type': 'string', 'required': True}
+    ],
+    'responses': {
+        200: {'description': 'Parâmetros encontrados'},
+        400: {'description': 'Empresa e lote são obrigatórios'},
+        403: {'description': 'Acesso negado (apenas administradores)'},
+        401: {'description': 'Token inválido ou ausente'}
+    }
+})
 def api_get_parametros(current_user):
-    """
-    Buscar parâmetros por empresa e lote
-    ---
-    tags:
-      - Parâmetros
-    security:
-      - Bearer: []
-    parameters:
-      - name: empresa
-        in: query
-        type: string
-        required: true
-        description: Nome da empresa
-        example: "Embryotech Inc."
-      - name: lote
-        in: query
-        type: string
-        required: true
-        description: Identificador do lote
-        example: "LOTE_001"
-    responses:
-      200:
-        description: Parâmetros encontrados
-        schema:
-          type: array
-          items:
-            type: object
-            properties:
-              id:
-                type: integer
-              empresa:
-                type: string
-              lote:
-                type: string
-              temp_ideal:
-                type: number
-              umid_ideal:
-                type: number
-              pressao_ideal:
-                type: number
-              lumens:
-                type: number
-              id_sala:
-                type: string
-              estagio_ovo:
-                type: string
-      400:
-        description: Empresa e lote são obrigatórios
-      403:
-        description: Acesso negado (apenas administradores)
-      401:
-        description: Token inválido ou ausente
-    """
+    """Buscar parâmetros por empresa e lote"""
     if not current_user.is_admin:
         return jsonify({'message': 'Acesso negado!'}), 403
 
@@ -929,52 +799,24 @@ def api_get_parametros(current_user):
 @app.route('/api/parametros/<int:id>', methods=['PUT'])
 @token_required
 @log_activity("ATUALIZAR_PARAMETRO")
+@swag_from({
+    'tags': ['Parâmetros'],
+    'summary': 'Atualizar parâmetros',
+    'description': 'Atualizar parâmetros existentes (apenas administradores)',
+    'security': [{'Bearer': []}],
+    'parameters': [
+        {'name': 'id', 'in': 'path', 'type': 'integer', 'required': True},
+        {'name': 'body', 'in': 'body', 'required': True, 'schema': {'$ref': '#/definitions/Parametro'}}
+    ],
+    'responses': {
+        200: {'description': 'Parâmetro atualizado com sucesso'},
+        404: {'description': 'Parâmetro não encontrado'},
+        403: {'description': 'Acesso negado (apenas administradores)'},
+        401: {'description': 'Token inválido ou ausente'}
+    }
+})
 def api_atualizar_parametro(current_user, id):
-    """
-    Atualizar parâmetros existentes
-    ---
-    tags:
-      - Parâmetros
-    security:
-      - Bearer: []
-    parameters:
-      - name: id
-        in: path
-        type: integer
-        required: true
-        description: ID do parâmetro
-      - name: body
-        in: body
-        required: true
-        schema:
-          type: object
-          properties:
-            empresa:
-              type: string
-            lote:
-              type: string
-            temp_ideal:
-              type: number
-            umid_ideal:
-              type: number
-            pressao_ideal:
-              type: number
-            lumens:
-              type: number
-            id_sala:
-              type: string
-            estagio_ovo:
-              type: string
-    responses:
-      200:
-        description: Parâmetro atualizado com sucesso
-      404:
-        description: Parâmetro não encontrado
-      403:
-        description: Acesso negado (apenas administradores)
-      401:
-        description: Token inválido ou ausente
-    """
+    """Atualizar parâmetros existentes"""
     if not current_user.is_admin:
         return jsonify({'message': 'Acesso negado!'}), 403
 
@@ -1019,81 +861,29 @@ def api_atualizar_parametro(current_user, id):
 @app.route('/api/logs', methods=['GET'])
 @token_required
 @log_activity("CONSULTAR_LOGS")
+@swag_from({
+    'tags': ['Logs'],
+    'summary': 'Consultar logs',
+    'description': 'Consultar logs do sistema com filtros opcionais (apenas administradores)',
+    'security': [{'Bearer': []}],
+    'parameters': [
+        {'name': 'usuario_id', 'in': 'query', 'type': 'integer', 'required': False},
+        {'name': 'acao', 'in': 'query', 'type': 'string', 'required': False},
+        {'name': 'data_inicio', 'in': 'query', 'type': 'string', 'format': 'date', 'required': False},
+        {'name': 'data_fim', 'in': 'query', 'type': 'string', 'format': 'date', 'required': False},
+        {'name': 'limite', 'in': 'query', 'type': 'integer', 'required': False, 'default': 100}
+    ],
+    'responses': {
+        200: {'description': 'Lista de logs'},
+        403: {'description': 'Acesso negado (apenas administradores)'},
+        401: {'description': 'Token inválido ou ausente'}
+    }
+})
 def api_get_logs(current_user):
-    """
-    Consultar logs do sistema
-    ---
-    tags:
-      - Logs
-    security:
-      - Bearer: []
-    parameters:
-      - name: usuario_id
-        in: query
-        type: integer
-        required: false
-        description: Filtrar por ID do usuário
-      - name: acao
-        in: query
-        type: string
-        required: false
-        description: Filtrar por ação (busca parcial)
-        example: "LOGIN"
-      - name: data_inicio
-        in: query
-        type: string
-        format: date
-        required: false
-        description: Data inicial do filtro
-        example: "2024-01-01"
-      - name: data_fim
-        in: query
-        type: string
-        format: date
-        required: false
-        description: Data final do filtro
-        example: "2024-01-31"
-      - name: limite
-        in: query
-        type: integer
-        required: false
-        default: 100
-        description: Limite de registros retornados
-        example: 50
-    responses:
-      200:
-        description: Lista de logs
-        schema:
-          type: array
-          items:
-            type: object
-            properties:
-              id:
-                type: integer
-              usuario_id:
-                type: integer
-              usuario_nome:
-                type: string
-              acao:
-                type: string
-              data_hora:
-                type: string
-                format: date-time
-              ip_address:
-                type: string
-              status_code:
-                type: integer
-              dados_adicionais:
-                type: object
-      403:
-        description: Acesso negado (apenas administradores)
-      401:
-        description: Token inválido ou ausente
-    """
+    """Consultar logs do sistema (apenas para administradores)"""
     if not current_user.is_admin:
         return jsonify({'message': 'Acesso negado!'}), 403
     
-    # Parâmetros de filtro
     usuario_id = request.args.get('usuario_id', type=int)
     acao = request.args.get('acao')
     data_inicio = request.args.get('data_inicio')
@@ -1118,39 +908,19 @@ def api_get_logs(current_user):
 @app.route('/api/usuarios', methods=['GET'])
 @token_required
 @log_activity("LISTAR_USUARIOS")
+@swag_from({
+    'tags': ['Usuários'],
+    'summary': 'Listar usuários',
+    'description': 'Obter lista de usuários (apenas administradores)',
+    'security': [{'Bearer': []}],
+    'responses': {
+        200: {'description': 'Lista de usuários'},
+        403: {'description': 'Acesso negado (apenas administradores)'},
+        401: {'description': 'Token inválido ou ausente'}
+    }
+})
 def api_get_usuarios(current_user):
-    """
-    Obter lista de usuários
-    ---
-    tags:
-      - Usuários
-    security:
-      - Bearer: []
-    responses:
-      200:
-        description: Lista de usuários
-        schema:
-          type: array
-          items:
-            type: object
-            properties:
-              id:
-                type: integer
-                example: 1
-              username:
-                type: string
-                example: "joao123"
-              email:
-                type: string
-                example: "joao@email.com"
-              is_admin:
-                type: boolean
-                example: false
-      403:
-        description: Acesso negado (apenas administradores)
-      401:
-        description: Token inválido ou ausente
-    """
+    """Obter lista de usuários (apenas para administradores)"""
     if not current_user.is_admin:
         return jsonify({'message': 'Acesso negado!'}), 403
     
@@ -1165,61 +935,24 @@ def api_get_usuarios(current_user):
 @app.route('/api/relatorio/leituras', methods=['GET'])
 @token_required
 @log_activity("RELATORIO_LEITURAS")
+@swag_from({
+    'tags': ['Relatórios'],
+    'summary': 'Relatório de leituras',
+    'description': 'Relatório de leituras com filtros opcionais (apenas administradores)',
+    'security': [{'Bearer': []}],
+    'parameters': [
+        {'name': 'lote', 'in': 'query', 'type': 'string', 'required': False},
+        {'name': 'data_inicio', 'in': 'query', 'type': 'string', 'format': 'date', 'required': False},
+        {'name': 'data_fim', 'in': 'query', 'type': 'string', 'format': 'date', 'required': False}
+    ],
+    'responses': {
+        200: {'description': 'Relatório de leituras'},
+        403: {'description': 'Acesso negado (apenas administradores)'},
+        401: {'description': 'Token inválido ou ausente'}
+    }
+})
 def api_relatorio_leituras(current_user):
-    """
-    Relatório de leituras com filtros
-    ---
-    tags:
-      - Relatórios
-    security:
-      - Bearer: []
-    parameters:
-      - name: lote
-        in: query
-        type: string
-        required: false
-        description: Filtrar por lote
-      - name: data_inicio
-        in: query
-        type: string
-        format: date
-        required: false
-        description: Data inicial
-      - name: data_fim
-        in: query
-        type: string
-        format: date
-        required: false
-        description: Data final
-    responses:
-      200:
-        description: Relatório de leituras
-        schema:
-          type: array
-          items:
-            type: object
-            properties:
-              id:
-                type: integer
-              umidade:
-                type: number
-              temperatura:
-                type: number
-              pressao:
-                type: number
-              lote:
-                type: string
-              data_inicial:
-                type: string
-                format: date-time
-              data_final:
-                type: string
-                format: date-time
-      403:
-        description: Acesso negado (apenas administradores)
-      401:
-        description: Token inválido ou ausente
-    """
+    """Relatório de leituras com filtros"""
     if not current_user.is_admin:
         return jsonify({'message': 'Acesso negado!'}), 403
     
@@ -1253,44 +986,26 @@ def api_relatorio_leituras(current_user):
 @app.route('/api/relatorio/auditoria/pdf', methods=['GET'])
 @token_required
 @log_activity("EXPORTAR_AUDITORIA_PDF")
+@swag_from({
+    'tags': ['Relatórios'],
+    'summary': 'Exportar auditoria PDF',
+    'description': 'Exportar relatório de auditoria em PDF (apenas administradores)',
+    'security': [{'Bearer': []}],
+    'parameters': [
+        {'name': 'usuario_id', 'in': 'query', 'type': 'integer', 'required': False},
+        {'name': 'data_inicio', 'in': 'query', 'type': 'string', 'format': 'date', 'required': False},
+        {'name': 'data_fim', 'in': 'query', 'type': 'string', 'format': 'date', 'required': False}
+    ],
+    'produces': ['application/pdf'],
+    'responses': {
+        200: {'description': 'Arquivo PDF gerado'},
+        403: {'description': 'Acesso negado (apenas administradores)'},
+        500: {'description': 'Erro ao gerar PDF'},
+        401: {'description': 'Token inválido ou ausente'}
+    }
+})
 def api_exportar_auditoria_pdf(current_user):
-    """
-    Exportar relatório de auditoria em PDF
-    ---
-    tags:
-      - Relatórios
-    security:
-      - Bearer: []
-    parameters:
-      - name: usuario_id
-        in: query
-        type: integer
-        required: false
-        description: Filtrar por usuário
-      - name: data_inicio
-        in: query
-        type: string
-        format: date
-        required: false
-        description: Data inicial
-      - name: data_fim
-        in: query
-        type: string
-        format: date
-        required: false
-        description: Data final
-    responses:
-      200:
-        description: Arquivo PDF gerado
-        schema:
-          type: file
-      403:
-        description: Acesso negado (apenas administradores)
-      500:
-        description: Erro ao gerar PDF
-      401:
-        description: Token inválido ou ausente
-    """
+    """Exportar relatório de auditoria em PDF"""
     if not current_user.is_admin:
         return jsonify({'message': 'Acesso negado!'}), 403
     
@@ -1302,12 +1017,10 @@ def api_exportar_auditoria_pdf(current_user):
         from reportlab.lib.units import cm
         import io
         
-        # Parâmetros de filtro
         usuario_id = request.args.get('usuario_id', type=int)
         data_inicio = request.args.get('data_inicio')
         data_fim = request.args.get('data_fim')
         
-        # Consultar logs
         query = Log.query
         if usuario_id:
             query = query.filter(Log.usuario_id == usuario_id)
@@ -1318,30 +1031,25 @@ def api_exportar_auditoria_pdf(current_user):
         
         logs = query.order_by(Log.data_hora.desc()).limit(500).all()
         
-        # Criar PDF
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), rightMargin=cm, leftMargin=cm, 
                                topMargin=cm, bottomMargin=cm)
         
-        # Estilos
         styles = getSampleStyleSheet()
         title_style = ParagraphStyle(
             'TitleStyle',
             parent=styles['Heading1'],
             fontSize=16,
             textColor=colors.HexColor('#25691b'),
-            alignment=1,  # Center
+            alignment=1,
             spaceAfter=20
         )
         
-        # Conteúdo do PDF
         elements = []
         
-        # Título
         title = Paragraph("Relatório de Auditoria - Embryotech", title_style)
         elements.append(title)
         
-        # Informações do relatório
         info_text = f"Gerado em: {datetime.datetime.now().strftime('%d/%m/%Y às %H:%M')}<br/>"
         info_text += f"Total de registros: {len(logs)}<br/>"
         if usuario_id:
@@ -1356,7 +1064,6 @@ def api_exportar_auditoria_pdf(current_user):
         elements.append(info_para)
         elements.append(Spacer(1, 20))
         
-        # Tabela de dados
         if logs:
             data = [['Data/Hora', 'Usuário', 'Ação', 'IP', 'Status']]
             
@@ -1387,7 +1094,6 @@ def api_exportar_auditoria_pdf(current_user):
         else:
             elements.append(Paragraph("Nenhum registro encontrado para os filtros selecionados.", styles['Normal']))
         
-        # Gerar PDF
         doc.build(elements)
         buffer.seek(0)
         
@@ -1404,44 +1110,26 @@ def api_exportar_auditoria_pdf(current_user):
 @app.route('/api/relatorio/leituras/pdf', methods=['GET'])
 @token_required
 @log_activity("EXPORTAR_LEITURAS_PDF")
+@swag_from({
+    'tags': ['Relatórios'],
+    'summary': 'Exportar leituras PDF',
+    'description': 'Exportar relatório de leituras em PDF (apenas administradores)',
+    'security': [{'Bearer': []}],
+    'parameters': [
+        {'name': 'lote', 'in': 'query', 'type': 'string', 'required': False},
+        {'name': 'data_inicio', 'in': 'query', 'type': 'string', 'format': 'date', 'required': False},
+        {'name': 'data_fim', 'in': 'query', 'type': 'string', 'format': 'date', 'required': False}
+    ],
+    'produces': ['application/pdf'],
+    'responses': {
+        200: {'description': 'Arquivo PDF gerado'},
+        403: {'description': 'Acesso negado (apenas administradores)'},
+        500: {'description': 'Erro ao gerar PDF'},
+        401: {'description': 'Token inválido ou ausente'}
+    }
+})
 def api_exportar_leituras_pdf(current_user):
-    """
-    Exportar relatório de leituras em PDF
-    ---
-    tags:
-      - Relatórios
-    security:
-      - Bearer: []
-    parameters:
-      - name: lote
-        in: query
-        type: string
-        required: false
-        description: Filtrar por lote
-      - name: data_inicio
-        in: query
-        type: string
-        format: date
-        required: false
-        description: Data inicial
-      - name: data_fim
-        in: query
-        type: string
-        format: date
-        required: false
-        description: Data final
-    responses:
-      200:
-        description: Arquivo PDF gerado
-        schema:
-          type: file
-      403:
-        description: Acesso negado (apenas administradores)
-      500:
-        description: Erro ao gerar PDF
-      401:
-        description: Token inválido ou ausente
-    """
+    """Exportar relatório de leituras em PDF"""
     if not current_user.is_admin:
         return jsonify({'message': 'Acesso negado!'}), 403
     
@@ -1453,12 +1141,10 @@ def api_exportar_leituras_pdf(current_user):
         from reportlab.lib.units import cm
         import io
         
-        # Parâmetros de filtro
         lote = request.args.get('lote')
         data_inicio = request.args.get('data_inicio')
         data_fim = request.args.get('data_fim')
         
-        # Consultar leituras
         query = Leitura.query
         if lote:
             query = query.filter(Leitura.lote == lote)
@@ -1471,30 +1157,25 @@ def api_exportar_leituras_pdf(current_user):
         
         leituras = query.order_by(Leitura.data_inicial.desc()).limit(1000).all()
         
-        # Criar PDF
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), rightMargin=cm, leftMargin=cm, 
                                topMargin=cm, bottomMargin=cm)
         
-        # Estilos
         styles = getSampleStyleSheet()
         title_style = ParagraphStyle(
             'TitleStyle',
             parent=styles['Heading1'],
             fontSize=16,
             textColor=colors.HexColor('#25691b'),
-            alignment=1,  # Center
+            alignment=1,
             spaceAfter=20
         )
         
-        # Conteúdo do PDF
         elements = []
         
-        # Título
         title = Paragraph("Relatório de Leituras - Embryotech", title_style)
         elements.append(title)
         
-        # Informações do relatório
         info_text = f"Gerado em: {datetime.datetime.now().strftime('%d/%m/%Y às %H:%M')}<br/>"
         info_text += f"Total de registros: {len(leituras)}<br/>"
         if lote:
@@ -1508,7 +1189,6 @@ def api_exportar_leituras_pdf(current_user):
         elements.append(info_para)
         elements.append(Spacer(1, 20))
         
-        # Tabela de dados
         if leituras:
             data = [['Data/Hora', 'Lote', 'Temp.(°C)', 'Umid.(%)', 'Pressão(hPa)']]
             
@@ -1539,7 +1219,6 @@ def api_exportar_leituras_pdf(current_user):
         else:
             elements.append(Paragraph("Nenhum registro encontrado para os filtros selecionados.", styles['Normal']))
         
-        # Gerar PDF
         doc.build(elements)
         buffer.seek(0)
         
@@ -1556,44 +1235,36 @@ def api_exportar_leituras_pdf(current_user):
 @app.route('/api/usuarios/<int:user_id>/senha', methods=['PUT'])
 @token_required
 @log_activity("ALTERAR_SENHA_USUARIO")
+@swag_from({
+    'tags': ['Usuários'],
+    'summary': 'Alterar senha',
+    'description': 'Alterar senha de usuário (apenas administradores)',
+    'security': [{'Bearer': []}],
+    'parameters': [
+        {'name': 'user_id', 'in': 'path', 'type': 'integer', 'required': True},
+        {
+            'name': 'body',
+            'in': 'body',
+            'required': True,
+            'schema': {
+                'type': 'object',
+                'required': ['nova_senha'],
+                'properties': {
+                    'nova_senha': {'type': 'string', 'minLength': 6}
+                }
+            }
+        }
+    ],
+    'responses': {
+        200: {'description': 'Senha alterada com sucesso'},
+        400: {'description': 'Nova senha inválida'},
+        403: {'description': 'Acesso negado'},
+        404: {'description': 'Usuário não encontrado'},
+        401: {'description': 'Token inválido'}
+    }
+})
 def api_alterar_senha_usuario(current_user, user_id):
-    """
-    Alterar senha de usuário (apenas admin)
-    ---
-    tags:
-      - Usuários
-    security:
-      - Bearer: []
-    parameters:
-      - name: user_id
-        in: path
-        type: integer
-        required: true
-        description: ID do usuário
-      - name: body
-        in: body
-        required: true
-        schema:
-          type: object
-          properties:
-            nova_senha:
-              type: string
-              example: "novaSenha123"
-              description: Nova senha (mínimo 6 caracteres)
-          required:
-            - nova_senha
-    responses:
-      200:
-        description: Senha alterada com sucesso
-      400:
-        description: Nova senha inválida
-      403:
-        description: Acesso negado (apenas administradores)
-      404:
-        description: Usuário não encontrado
-      401:
-        description: Token inválido ou ausente
-    """
+    """Alterar senha de outro usuário (apenas admin)"""
     if not current_user.is_admin:
         return jsonify({'message': 'Acesso negado!'}), 403
     
@@ -1622,44 +1293,36 @@ def api_alterar_senha_usuario(current_user, user_id):
 @app.route('/api/usuarios/<int:user_id>/admin', methods=['PUT'])
 @token_required
 @log_activity("ALTERAR_PRIVILEGIOS_USUARIO")
+@swag_from({
+    'tags': ['Usuários'],
+    'summary': 'Alterar privilégios',
+    'description': 'Alterar privilégios de administrador (apenas administradores)',
+    'security': [{'Bearer': []}],
+    'parameters': [
+        {'name': 'user_id', 'in': 'path', 'type': 'integer', 'required': True},
+        {
+            'name': 'body',
+            'in': 'body',
+            'required': True,
+            'schema': {
+                'type': 'object',
+                'required': ['is_admin'],
+                'properties': {
+                    'is_admin': {'type': 'boolean'}
+                }
+            }
+        }
+    ],
+    'responses': {
+        200: {'description': 'Privilégios alterados com sucesso'},
+        400: {'description': 'Não é possível remover próprios privilégios'},
+        403: {'description': 'Acesso negado'},
+        404: {'description': 'Usuário não encontrado'},
+        401: {'description': 'Token inválido'}
+    }
+})
 def api_alterar_privilegios_usuario(current_user, user_id):
-    """
-    Alterar privilégios de administrador
-    ---
-    tags:
-      - Usuários
-    security:
-      - Bearer: []
-    parameters:
-      - name: user_id
-        in: path
-        type: integer
-        required: true
-        description: ID do usuário
-      - name: body
-        in: body
-        required: true
-        schema:
-          type: object
-          properties:
-            is_admin:
-              type: boolean
-              example: true
-              description: True para promover a admin, false para remover
-          required:
-            - is_admin
-    responses:
-      200:
-        description: Privilégios alterados com sucesso
-      400:
-        description: Não é possível remover próprios privilégios
-      403:
-        description: Acesso negado (apenas administradores)
-      404:
-        description: Usuário não encontrado
-      401:
-        description: Token inválido ou ausente
-    """
+    """Alterar privilégios de admin de um usuário (apenas admin)"""
     if not current_user.is_admin:
         return jsonify({'message': 'Acesso negado!'}), 403
     
@@ -1670,7 +1333,6 @@ def api_alterar_privilegios_usuario(current_user, user_id):
     if not usuario:
         return jsonify({'message': 'Usuário não encontrado'}), 404
     
-    # Evitar que o admin remova seu próprio privilégio
     if usuario.id == current_user.id and not is_admin:
         return jsonify({'message': 'Você não pode remover seus próprios privilégios de admin'}), 400
     
@@ -1690,81 +1352,66 @@ def api_alterar_privilegios_usuario(current_user, user_id):
 @app.route('/api/relatorio/usuarios/pdf', methods=['GET'])
 @token_required
 @log_activity("EXPORTAR_USUARIOS_PDF")
+@swag_from({
+    'tags': ['Relatórios'],
+    'summary': 'Exportar usuários PDF',
+    'description': 'Exportar relatório de usuários em PDF (apenas administradores)',
+    'security': [{'Bearer': []}],
+    'parameters': [{
+        'name': 'tipo',
+        'in': 'query',
+        'type': 'string',
+        'enum': ['admin', 'user'],
+        'required': False
+    }],
+    'produces': ['application/pdf'],
+    'responses': {
+        200: {'description': 'Arquivo PDF gerado'},
+        403: {'description': 'Acesso negado'},
+        500: {'description': 'Erro ao gerar PDF'},
+        401: {'description': 'Token inválido'}
+    }
+})
 def api_exportar_usuarios_pdf(current_user):
-    """
-    Exportar relatório de usuários em PDF
-    ---
-    tags:
-      - Relatórios
-    security:
-      - Bearer: []
-    parameters:
-      - name: tipo
-        in: query
-        type: string
-        required: false
-        enum: [admin, user]
-        description: Filtrar por tipo de usuário
-        example: "admin"
-    responses:
-      200:
-        description: Arquivo PDF gerado
-        schema:
-          type: file
-      403:
-        description: Acesso negado (apenas administradores)
-      500:
-        description: Erro ao gerar PDF
-      401:
-        description: Token inválido ou ausente
-    """
+    """Exportar relatório de usuários em PDF"""
     if not current_user.is_admin:
         return jsonify({'message': 'Acesso negado!'}), 403
     
     try:
-        from reportlab.lib.pagesizes import A4, landscape
+        from reportlab.lib.pagesizes import A4
         from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
         from reportlab.lib import colors
         from reportlab.lib.units import cm
         import io
         
-        # Parâmetro de filtro
         tipo_usuario = request.args.get('tipo')
-        
-        # Consultar usuários
         usuarios = User.query.all()
         
-        # Filtrar por tipo se especificado
         if tipo_usuario == 'admin':
             usuarios = [u for u in usuarios if u.is_admin]
         elif tipo_usuario == 'user':
             usuarios = [u for u in usuarios if not u.is_admin]
         
-        # Criar PDF
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=cm, leftMargin=cm, 
                                topMargin=cm, bottomMargin=cm)
         
-        # Estilos
         styles = getSampleStyleSheet()
         title_style = ParagraphStyle(
             'TitleStyle',
             parent=styles['Heading1'],
             fontSize=16,
             textColor=colors.HexColor('#25691b'),
-            alignment=1,  # Center
+            alignment=1,
             spaceAfter=20
         )
         
-        # Conteúdo do PDF
         elements = []
         
-        # Título
         title = Paragraph("Relatório de Usuários - Embryotech", title_style)
         elements.append(title)
         
-        # Informações do relatório
         info_text = f"Gerado em: {datetime.datetime.now().strftime('%d/%m/%Y às %H:%M')}<br/>"
         info_text += f"Total de registros: {len(usuarios)}<br/>"
         if tipo_usuario:
@@ -1775,7 +1422,6 @@ def api_exportar_usuarios_pdf(current_user):
         elements.append(info_para)
         elements.append(Spacer(1, 20))
         
-        # Tabela de dados
         if usuarios:
             data = [['ID', 'Nome de Usuário', 'Email', 'Tipo']]
             
@@ -1805,7 +1451,6 @@ def api_exportar_usuarios_pdf(current_user):
         else:
             elements.append(Paragraph("Nenhum usuário encontrado para os filtros selecionados.", styles['Normal']))
         
-        # Gerar PDF
         doc.build(elements)
         buffer.seek(0)
         
@@ -1819,5 +1464,34 @@ def api_exportar_usuarios_pdf(current_user):
     except Exception as e:
         return jsonify({'message': f'Erro ao gerar PDF: {str(e)}'}), 500
 
+# ==================== HANDLERS DE ERRO ====================
+
+@app.errorhandler(404)
+def not_found(error):
+    """Handler para 404 - Página não encontrada"""
+    return jsonify({
+        'message': 'Endpoint não encontrado',
+        'swagger_ui': f'http://localhost:{PORT}/swagger/',
+        'error': 'Not Found'
+    }), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    """Handler para 500 - Erro interno"""
+    db.session.rollback()
+    return jsonify({
+        'message': 'Erro interno do servidor',
+        'error': 'Internal Server Error'
+    }), 500
+
+# ==================== EXECUÇÃO ====================
+
 if __name__ == '__main__':
+    print("="*60)
+    print(f"🚀 Embryotech API iniciando na porta {PORT}")
+    print(f"📚 Documentação Swagger: http://localhost:{PORT}/swagger/")
+    print(f"🔗 API Status: http://localhost:{PORT}/api/")
+    print(f"💻 Dashboard: http://localhost:{PORT}/dashboard")
+    print("="*60)
+    
     app.run(host='0.0.0.0', port=PORT, debug=True)

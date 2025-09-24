@@ -1,16 +1,29 @@
-Flask==2.0.3
-Flask-SQLAlchemy==2.5.1
-SQLAlchemy==1.4.48
-Flask-Migrate==3.1.0
-psycopg2-binary==2.9.7
-requests==2.31.0
-Flask-Cors==4.0.0
-python-dotenv==1.0.0
+# Framework Flask e extensões principais
+Flask==2.3.3
+flask-sqlalchemy==3.0.5
+flask-migrate==4.0.5
+flask-cors==4.0.0
+
+# Segurança e autenticação
+Werkzeug==2.3.7
 PyJWT==2.8.0
-Werkzeug==2.0.3
-gunicorn==21.2.0
-Jinja2==3.0.3
-MarkupSafe==2.0.1
-click==8.0.4
-itsdangerous==2.0.1
+
+# Documentação da API
+flasgger==0.9.7.1
+
+# Geração de relatórios PDF
 reportlab==4.0.4
+
+# Banco de dados
+SQLAlchemy==2.0.21
+
+# Utilitários
+python-dotenv==1.0.0
+requests==2.31.0
+
+# Desenvolvimento e testes
+pytest==7.4.2
+pytest-flask==1.2.0
+
+# Produção
+gunicorn==21.2.0
