@@ -5,6 +5,7 @@ const int pinoEnable = 15;
 
 const int tempoVelocidade = 1500; 
 const int numeroPassos = 200;
+
 void setup() {
   pinMode(dirPin, OUTPUT);
   pinMode(stepPin, OUTPUT);
