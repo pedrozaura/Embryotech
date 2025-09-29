@@ -49,20 +49,17 @@
 #include <Wire.h>
 #include <Adafruit_MLX90614.h>
 #include <Adafruit_BMP280.h>
+#include <Adafruit_AHTX0.h>
 #include "Wire.h"
 #include <UnicViewAD.h>
 #include "esp_system.h"
-
+#include <WiFiClientSecure.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
-
 #include <EEPROM.h>
-
 #include <WebServer.h>
-//#include <ESP32WebServer.h>  // Para servidor web
 
-#include <WiFiClientSecure.h>
 
 const char* ssid = "Outside";
 const char* password = "Outside@123456";

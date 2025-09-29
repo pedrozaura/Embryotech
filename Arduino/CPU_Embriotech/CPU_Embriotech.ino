@@ -23,6 +23,7 @@
 // ========== OBJETOS DOS SENSORES ==========
 Adafruit_MLX90614 mlx = Adafruit_MLX90614();
 Adafruit_BMP280 bmp; // I2C
+Adafruit_AHTX0 aht;
 
 // Criando o Objeto para o display
 LCM Lcm(Serial2); // RX=16, TX=17
@@ -121,14 +122,17 @@ SensorData coletar_dados_sensores() {
   SensorData dados;
   dados.valida = false;
   
+  sensors_event_t humidity, temp;
+  aht.getEvent(&humidity, &temp);  // Read temperature and humidity
+
   Serial.println("Coletando dados dos sensores...");
   
   // Ler DHT22 (temperatura e umidade)
-  dados.temperatura = mlx.readObjectTempC();
-  dados.umidade = mlx.readAmbientTempC();
+  dados.temperatura = mlx.readObjectTempC();  //Carrega temperatura do Ovo, sensor MLX90614
+  dados.umidade = humidity.relative_humidity; //Carrega a umidade do AHT10. umidade ambiente
   
   // Ler BMP280 (pressão)
-  dados.pressao = bmp.readPressure() / 100.0F; // Converter para hPa
+  dados.pressao = bmp.readPressure() / 100.0F; // Converter para hPa carrega os dados de pressao ambiente. 
   
   // Verificar se as leituras são válidas
   if (isnan(dados.temperatura) || isnan(dados.umidade)) {
@@ -803,19 +807,23 @@ void setup() {
     // Porta Serial 2 - Responsavel para comunicação do display
   Serial2.begin(115200, SERIAL_8N1, RXD2, TXD2);
    
-    if(!Serial2){
-      Serial.println("Erro ao Inicializar a porta Serial 2 -- Verifique!!!");
-      statusSR2 = "DISPLAY - ERROR";
-    }
-    else{
-      Serial.println("Serial 2 Inicializada com sucesso!!!");
-      statusSR2 = "DISPLAY - OK";
-    }
+  if(!Serial2){
+    Serial.println("Erro ao Inicializar a porta Serial 2 -- Verifique!!!");
+    statusSR2 = "DISPLAY - ERROR";
+  }
+  else{
+    Serial.println("Serial 2 Inicializada com sucesso!!!");
+    statusSR2 = "DISPLAY - OK";
+  }
   
   Lcm.begin();
-
   mlx.begin();
-  
+  aht.begin();
+  if (!aht.begin()) {
+    Serial.println("Falha ao localizar o sensor AHT10 !");
+  }
+  Serial.println("AHT10 encontrado e inicializado.");
+
   temperaturaMLX = mlx.readAmbientTempC();
 
   if(isnan(temperaturaMLX)){ // verificando se o retorno not a number, ou seja, sem retorno numerico. 
