@@ -57,6 +57,11 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 
+#include <EEPROM.h>
+
+#include <WebServer.h>
+//#include <ESP32WebServer.h>  // Para servidor web
+
 #include <WiFiClientSecure.h>
 
 const char* ssid = "Outside";
@@ -69,5 +74,9 @@ const char* api_base_url = "https://embryo.outsideagro.tech/api";
 const char* username = "processador";     // Nome do usuário para o ESP32
 const char* user_password = "Outside@123456";  // Senha do usuário para o ESP32
 const char* lote_id = "ESP32_LOTE_TCC"; // Identificador do lote de ovos
+
+
+
+
 
 #endif

@@ -38,6 +38,23 @@ enum EstadoSistema {
   EXECUTANDO_MOTOR_CENTRO
 };
 
+// Status de conexão
+enum ConnectionStatus {
+  DISCONNECTED,
+  CONNECTING_WIFI,
+  CONNECTING_WEBSOCKET,
+  CONNECTED,
+  ERROR_STATE
+};
+ConnectionStatus currentStatus = DISCONNECTED;
+
+// Configurações Wi-Fi e WebServer
+struct Config {
+  char ssid[32];
+  char password[64];
+};
+Config config;
+
 // ==================== ESTRUTURA DE DADOS ====================
 struct SensorData {
   float temperatura;
@@ -92,7 +109,11 @@ unsigned long last_ntp_attempt = 0;
 const unsigned long ntp_retry_interval = 300000; // Tentar NTP novamente a cada 5 minutos
 bool ntp_synchronized = false;
 
+// Inicializando a biblioteca HTTPClient
+HTTPClient http;
 
+// Criar instância do servidor na porta 80
+WebServer server(80);
 
 // ========== FUNÇÕES DE CONFIGURAÇÃO ==========
 // ==================== COLETA DE DADOS DOS SENSORES ====================
@@ -111,7 +132,7 @@ SensorData coletar_dados_sensores() {
   
   // Verificar se as leituras são válidas
   if (isnan(dados.temperatura) || isnan(dados.umidade)) {
-    Serial.println("Erro: Falha na leitura do sensor DHT22");
+    Serial.println("Erro: Falha na leitura do sensor Temperatura/Umidade");
     return dados;
   }
   
@@ -130,6 +151,51 @@ SensorData coletar_dados_sensores() {
   
   dados.valida = true;
   return dados;
+}
+
+void saveConfig() {
+  EEPROM.put(0, config);
+  EEPROM.commit();
+}
+
+void loadConfig() {
+  EEPROM.get(0, config);
+  if (config.ssid[0] == 0xFF || strlen(config.ssid) == 0) {
+    strcpy(config.ssid, "");
+    strcpy(config.password, "");
+    saveConfig();
+  }
+}
+
+void startAPMode() {
+  WiFi.softAP("ESP32_Config", "");
+  IPAddress IP = WiFi.softAPIP();
+  Serial.print("Modo AP. Conecte-se ao IP: ");
+  Serial.println(IP);
+
+  server.on("/", []() {
+    server.send(200, "text/html", 
+      "<form action='/save' method='POST'>"
+      "SSID: <input type='text' name='ssid'><br>"
+      "Senha: <input type='password' name='pass'><br>"
+      "<input type='submit' value='Salvar'>"
+      "</form>");
+  });
+
+  server.on("/save", HTTP_POST, []() {
+    strcpy(config.ssid, server.arg("ssid").c_str());
+    strcpy(config.password, server.arg("pass").c_str());
+    saveConfig();
+    server.send(200, "text/plain", "Credenciais salvas. Reiniciando...");
+    delay(2000);
+    ESP.restart();
+  });
+
+  server.begin();
+  while (WiFi.status() != WL_CONNECTED) {
+    server.handleClient();
+    delay(100);
+  }
 }
 
 void configurar_ntp() {
@@ -197,26 +263,26 @@ void tentar_resincronizar_ntp() {
   Serial.println("✗ Ressincronização falhou - tentará novamente em 5 minutos");
 }
 
-
 void conectar_wifi() {
-  Serial.print("Conectando ao WiFi");
-  WiFi.begin(ssid, password);
+  loadConfig();
+  WiFi.begin(config.ssid, config.password);
   
   int tentativas = 0;
-  while (WiFi.status() != WL_CONNECTED && tentativas < 20) {
-    delay(500);
+  while (WiFi.status() != WL_CONNECTED && tentativas < 15) {
+    delay(1000);
     Serial.print(".");
     tentativas++;
   }
   
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.println();
-    Serial.println("WiFi conectado!");
-    Serial.print("IP: ");
-    Serial.println(WiFi.localIP());
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("\nFalha ao conectar ao WiFi");
+    Serial.println("\nFalha! Modo AP ativado.");
+    currentStatus = ERROR_STATE;
+    startAPMode();
   } else {
-    Serial.println();
-    Serial.println("Falha na conexão WiFi");
+    Serial.println("\nWiFi Conectado com sucesso!");
+    Serial.printf("IP Address: %s\n", WiFi.localIP().toString().c_str());
+    Serial.printf("Intensidade Sinal: %d dBm\n", WiFi.RSSI());
   }
 }
 
@@ -776,6 +842,8 @@ void setup() {
     statusBMP = "BMP - OK";
   }
 
+    // Inicializar EEPROM e WiFi
+  EEPROM.begin(sizeof(Config));
 
   Lcm.changePicId(picIdIntro);
 
