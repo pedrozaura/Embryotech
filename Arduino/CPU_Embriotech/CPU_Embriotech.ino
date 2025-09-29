@@ -1,47 +1,6 @@
 // Código para ESP32 - Sistema de Elevador com 3 Motores de Passo
 // Compatível com Arduino IDE
 
-// ========== DEFINIÇÃO DE PINOS ==========
-
-// Pinos dos Motores de Passo (TB6600)
-// Motor Torre Direita
-#define MOTOR_DIR_STEP 25   // Laranja
-#define MOTOR_DIR_DIR 26    // Marrom
-#define MOTOR_DIR_ENABLE 27 // Verde
-
-// Motor Torre Esquerda
-#define MOTOR_ESQ_STEP 32   // Laranja
-#define MOTOR_ESQ_DIR 33    // Marrom
-#define MOTOR_ESQ_ENABLE 14 // Verde
-
-// Motor Centro
-#define MOTOR_CENTRO_STEP 12    // Laranja
-#define MOTOR_CENTRO_DIR 13     // Marrom
-#define MOTOR_CENTRO_ENABLE 15  // Verde
-
-// Pinos dos Fins de Curso
-// Torre Direita
-#define FIM_CURSO_DIR_SUPERIOR 34 // Marrom  BORNE NRO_1
-#define FIM_CURSO_DIR_INFERIOR 35 // Cinza   BORNE NRO_2
-
-// Torre Esquerda
-#define FIM_CURSO_ESQ_SUPERIOR 36 // Roxo BORNE NRO_3
-#define FIM_CURSO_ESQ_INFERIOR 39 // Azul BORNE NRO_4
-
-// Mecanismo Central - Indicadores de Andar
-#define FIM_CURSO_MECANISMO_MEIO_DIREITA 4    // Verde BORNE NRO_5
-#define FIM_CURSO_MECANISMO_MEIO_ESQUERDA 5   // Bege BORNE NRO_6
-
-// Fins de Curso do Motor Central
-#define FIM_CURSO_CENTRO_1 18   // BORNE NRO_7 Amarelo Controle motor centro Posição esquerda
-#define FIM_CURSO_CENTRO_2 19   // BORNE NRO_8 Branco Controle motor centro Posição direita
-
-// GPIOs 16 e 17 agora estão livres para comunicação serial
-// Exemplo de uso: Serial2.begin(115200, SERIAL_8N1, 16, 17); // RX=16, TX=17
-
-#define pinoSensorParada 23
-#define pinoLDR 2
-
 
 
 // ========== CONFIGURAÇÕES DO SISTEMA ==========
@@ -55,6 +14,19 @@
 #define PASSOS_POR_ANDAR 2000  // Ajuste conforme necessário
 #define PASSOS_AJUSTE_FINO 50   // Para correções de equilíbrio
 
+
+// ========== BIBLIOTECAS ==========
+// Bibliotecas Sensores e Atuadores 
+
+#include "config.h"
+
+// ========== OBJETOS DOS SENSORES ==========
+Adafruit_MLX90614 mlx = Adafruit_MLX90614();
+Adafruit_BMP280 bmp; // I2C
+
+// Criando o Objeto para o display
+LCM Lcm(Serial2); // RX=16, TX=17
+
 // ========== VARIÁVEIS GLOBAIS ==========
 
 // Estados do sistema
@@ -64,6 +36,14 @@ enum EstadoSistema {
   DESCENDO,
   AJUSTANDO_EQUILIBRIO,
   EXECUTANDO_MOTOR_CENTRO
+};
+
+// ==================== ESTRUTURA DE DADOS ====================
+struct SensorData {
+  float temperatura;
+  float umidade;
+  float pressao;
+  bool valida;
 };
 
 EstadoSistema estadoAtual = PARADO;
@@ -80,29 +60,397 @@ bool equilibrioOK = true;
 bool ultimoEstadoMeioDireita = false;
 bool ultimoEstadoMeioEsquerda = false;
 
-// ========== FUNÇÕES DE CONFIGURAÇÃO ==========
+char loteOvos[20] = "";
+char dataInicialLote[20] = "";
+char dataFinalLote[20] = "";
 
-void setup() {
-  Serial.begin(115200);
-  Serial.println("Iniciando Sistema de Controle do Elevador");
+const int picIdIntro(0); // Coloca o numero da tela Inicial, função para qual quando reiniciar o display essa vai enviar para tela inicial da apresentação do display.
+const int picIdMain(153); // leva o numero da tela Principal.
+
+String statusBMP = "";
+String statusMLX = "";
+String statusSR2 = "";
+
+float temperaturaMLX = 0.0;
+float temperaturaBMP = 0.0;
+float pressaoBMP = 0.0;
+float altitudeBMP = 0.0;
+int luminosidadeLDR = 0;
+
+String jwt_token = "";
+unsigned long last_token_time = 0;
+const unsigned long token_lifetime = 3300000; // 55 minutos (token expira em 1h)
+const unsigned long reading_interval = 30000; // 30 segundos entre leituras
+unsigned long last_reading_time = 0;
+
+// ==================== CONFIGURAÇÕES NTP ====================
+const char* ntp_server = "pool.ntp.org";
+const long gmt_offset_sec = -3 * 3600; // GMT-3 (Brasil)
+const int daylight_offset_sec = 0;
+
+unsigned long last_ntp_attempt = 0;
+const unsigned long ntp_retry_interval = 300000; // Tentar NTP novamente a cada 5 minutos
+bool ntp_synchronized = false;
+
+
+
+// ========== FUNÇÕES DE CONFIGURAÇÃO ==========
+// ==================== COLETA DE DADOS DOS SENSORES ====================
+SensorData coletar_dados_sensores() {
+  SensorData dados;
+  dados.valida = false;
   
-  // Configurar Serial2 nas GPIOs liberadas (se necessário)
-  // Serial2.begin(115200, SERIAL_8N1, 16, 17); // RX=GPIO16, TX=GPIO17
+  Serial.println("Coletando dados dos sensores...");
   
-  // Configurar pinos dos motores como saída
-  configurarMotores();
+  // Ler DHT22 (temperatura e umidade)
+  dados.temperatura = mlx.readObjectTempC();
+  dados.umidade = mlx.readAmbientTempC();
   
-  // Configurar pinos dos fins de curso como entrada com pullup
-  configurarFinsDeCorso();
+  // Ler BMP280 (pressão)
+  dados.pressao = bmp.readPressure() / 100.0F; // Converter para hPa
   
-  // Desabilitar todos os motores inicialmente
-  desabilitarTodosMotores();
+  // Verificar se as leituras são válidas
+  if (isnan(dados.temperatura) || isnan(dados.umidade)) {
+    Serial.println("Erro: Falha na leitura do sensor DHT22");
+    return dados;
+  }
   
-  // Realizar homing (ir para posição inicial)
-  realizarHoming();
+  if (isnan(dados.pressao) || dados.pressao == 0) {
+    Serial.println("Erro: Falha na leitura do sensor BMP280");
+    // Continuar mesmo sem pressão válida
+    dados.pressao = 0;
+  }
   
-  Serial.println("Sistema Pronto!");
+  // Mostrar dados coletados
+  Serial.println("=== DADOS COLETADOS ===");
+  Serial.println("Temperatura: " + String(dados.temperatura, 2) + "°C");
+  Serial.println("Umidade: " + String(dados.umidade, 2) + "%");
+  Serial.println("Pressão: " + String(dados.pressao, 2) + " hPa");
+  Serial.println("=====================");
+  
+  dados.valida = true;
+  return dados;
 }
+
+void configurar_ntp() {
+  Serial.println("Configurando NTP...");
+  configTime(gmt_offset_sec, daylight_offset_sec, ntp_server);
+  
+  Serial.print("Aguardando sincronização NTP");
+  int tentativas = 0;
+  time_t now = 0;
+  
+  // Aguardar até 30 segundos para sincronização NTP
+  while (tentativas < 30) {
+    now = time(nullptr);
+    if (now > 1000000000) { // Se timestamp válido (após ano 2001)
+      break;
+    }
+    Serial.print(".");
+    delay(1000);
+    tentativas++;
+  }
+  
+  Serial.println();
+  
+  if (now > 1000000000) {
+    ntp_synchronized = true;
+    Serial.println("✓ NTP sincronizado com sucesso!");
+    
+    // Mostrar hora atual
+    struct tm timeinfo;
+    localtime_r(&now, &timeinfo);
+    char buffer[50];
+    strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &timeinfo);
+    Serial.println("Hora atual: " + String(buffer));
+  } else {
+    ntp_synchronized = false;
+    Serial.println("✗ Falha na sincronização NTP - usando estimativa baseada em uptime");
+    last_ntp_attempt = millis(); // Marcar para tentar novamente
+  }
+}
+
+// Função para forçar nova sincronização NTP
+
+void tentar_resincronizar_ntp() {
+  Serial.println("Ressincronizando NTP...");
+  configTime(gmt_offset_sec, daylight_offset_sec, ntp_server);
+  
+  // Aguardar 10 segundos
+  for (int i = 0; i < 10; i++) {
+    delay(1000);
+    time_t now = time(nullptr);
+    if (now > 1000000000) {
+      ntp_synchronized = true;
+      Serial.println("✓ NTP ressincronizado com sucesso!");
+      
+      // Mostrar nova hora
+      struct tm timeinfo;
+      localtime_r(&now, &timeinfo);
+      char buffer[50];
+      strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &timeinfo);
+      Serial.println("Nova hora: " + String(buffer));
+      return;
+    }
+  }
+  ntp_synchronized = false;
+  Serial.println("✗ Ressincronização falhou - tentará novamente em 5 minutos");
+}
+
+
+void conectar_wifi() {
+  Serial.print("Conectando ao WiFi");
+  WiFi.begin(ssid, password);
+  
+  int tentativas = 0;
+  while (WiFi.status() != WL_CONNECTED && tentativas < 20) {
+    delay(500);
+    Serial.print(".");
+    tentativas++;
+  }
+  
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println();
+    Serial.println("WiFi conectado!");
+    Serial.print("IP: ");
+    Serial.println(WiFi.localIP());
+  } else {
+    Serial.println();
+    Serial.println("Falha na conexão WiFi");
+  }
+}
+
+bool fazer_login() {
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("WiFi não conectado. Não é possível fazer login.");
+    return false;
+  }
+  
+  // Configurar cliente HTTPS
+  WiFiClientSecure client;
+  client.setInsecure(); // Para desenvolvimento - aceita qualquer certificado SSL
+  
+  HTTPClient http;
+  http.begin(client, String(api_base_url) + "/login");
+  http.addHeader("Content-Type", "application/json");
+  
+  // Configurar timeout para HTTPS
+  http.setTimeout(15000); // 15 segundos
+  
+  // Criar JSON de login
+  DynamicJsonDocument doc(1024);
+  doc["username"] = username;
+  doc["password"] = user_password;
+  
+  String json_string;
+  serializeJson(doc, json_string);
+  
+  Serial.println("Fazendo login na API via HTTPS...");
+  Serial.println("URL: " + String(api_base_url) + "/login");
+  
+  int httpResponseCode = http.POST(json_string);
+  
+  if (httpResponseCode == 200) {
+    String response = http.getString();
+    Serial.println("Login realizado com sucesso!");
+    
+    // Parse da resposta para extrair o token
+    DynamicJsonDocument responseDoc(1024);
+    DeserializationError error = deserializeJson(responseDoc, response);
+    
+    if (error) {
+      Serial.print("Erro ao fazer parse da resposta: ");
+      Serial.println(error.c_str());
+      http.end();
+      return false;
+    }
+    
+    jwt_token = responseDoc["token"].as<String>();
+    last_token_time = millis();
+    
+    Serial.println("Token JWT obtido com sucesso");
+    Serial.println("Token (primeiros 20 caracteres): " + jwt_token.substring(0, 20) + "...");
+    http.end();
+    return true;
+  } else {
+    Serial.print("Erro no login. Código HTTP: ");
+    Serial.println(httpResponseCode);
+    String response = http.getString();
+    Serial.println("Resposta: " + response);
+    http.end();
+    return false;
+  }
+}
+
+bool enviar_dados_api(SensorData dados) {
+  if (jwt_token == "") {
+    Serial.println("Token JWT não disponível");
+    return false;
+  }
+  
+  // Configurar cliente HTTPS
+  WiFiClientSecure client;
+  client.setInsecure(); // Para desenvolvimento - aceita qualquer certificado SSL
+  
+  HTTPClient http;
+  http.begin(client, String(api_base_url) + "/leituras");
+  http.addHeader("Content-Type", "application/json");
+  http.addHeader("Authorization", "Bearer " + jwt_token);
+  
+  // Configurar timeout para HTTPS
+  http.setTimeout(15000); // 15 segundos
+  
+  // Criar timestamp atual (formato ISO)
+  String timestamp = obter_timestamp_iso();
+  
+  // Formatar valores com 2 casas decimais
+  String temperatura_formatada = String(dados.temperatura, 2);
+  String umidade_formatada = String(dados.umidade, 2);
+  String pressao_formatada = String(dados.pressao, 2);
+  
+  // Criar JSON com os dados formatados
+  DynamicJsonDocument doc(1024);
+  doc["temperatura"] = temperatura_formatada.toFloat();
+  doc["umidade"] = umidade_formatada.toFloat();
+  
+  // Só incluir pressão se for um valor válido
+  if (dados.pressao > 0) {
+    doc["pressao"] = pressao_formatada.toFloat();
+  }
+  
+  doc["lote"] = lote_id;
+  doc["data_inicial"] = timestamp;
+  doc["data_final"] = timestamp;
+  
+  String json_string;
+  serializeJson(doc, json_string);
+  
+  Serial.println("Enviando dados para API via HTTPS...");
+  Serial.println("Valores formatados:");
+  Serial.println("  Temperatura: " + temperatura_formatada + "°C");
+  Serial.println("  Umidade: " + umidade_formatada + "%");
+  if (dados.pressao > 0) {
+    Serial.println("  Pressão: " + pressao_formatada + " hPa");
+  }
+  Serial.println("JSON: " + json_string);
+  
+  int httpResponseCode = http.POST(json_string);
+  
+  if (httpResponseCode == 201) {
+    String response = http.getString();
+    Serial.println("Dados enviados com sucesso!");
+    Serial.println("Resposta: " + response);
+    http.end();
+    return true;
+  } else {
+    Serial.print("Erro ao enviar dados. Código HTTP: ");
+    Serial.println(httpResponseCode);
+    String response = http.getString();
+    Serial.println("Resposta: " + response);
+    
+    // Se token inválido, limpar para forçar novo login
+    if (httpResponseCode == 401) {
+      Serial.println("Token inválido. Limpando token para novo login.");
+      jwt_token = "";
+    }
+    
+    http.end();
+    return false;
+  }
+}
+
+
+
+// Funçoes auxiliares
+// ==================== FUNÇÕES AUXILIARES ====================
+String obter_timestamp_iso() {
+  // Tentar usar NTP primeiro
+  time_t now = time(nullptr);
+  
+  Serial.println("=== DEBUG TIMESTAMP DETALHADO ===");
+  Serial.println("NTP time raw: " + String(now));
+  Serial.println("Válido? " + String(now > 1000000000 ? "SIM" : "NÃO"));
+  
+  if (now > 1000000000) { // Se NTP funcionou (timestamp válido após 2001)
+    Serial.println("✓ Usando NTP para timestamp");
+    
+    struct tm timeinfo;
+    localtime_r(&now, &timeinfo); // Usar localtime para GMT-3
+    
+    char buffer[25];
+    strftime(buffer, sizeof(buffer), "%Y-%m-%dT%H:%M:%S", &timeinfo);
+    
+    Serial.println("Timestamp NTP: " + String(buffer));
+    return String(buffer);
+  } else {
+    Serial.println("✗ NTP falhou - usando estimativa baseada em data atual");
+    
+    // CORREÇÃO: Usar uma data base mais realística (final de 2024)
+    // Base: 31/12/2024 23:59:59 (timestamp: 1735689599)
+    unsigned long estimated_time = 1735689599 + (millis() / 1000);
+    
+    struct tm timeinfo;
+    time_t estimated = estimated_time;
+    gmtime_r(&estimated, &timeinfo);
+    
+    char buffer[25];
+    strftime(buffer, sizeof(buffer), "%Y-%m-%dT%H:%M:%S", &timeinfo);
+    
+    Serial.println("Timestamp estimado: " + String(buffer));
+    return String(buffer);
+  }
+}
+
+void debug_timestamp() {
+  Serial.println("=== DEBUG TIMESTAMP ===");
+  time_t now = time(nullptr);
+  Serial.println("NTP time atual: " + String(now));
+  Serial.println("Millis(): " + String(millis()));
+  Serial.println("Timestamp gerado: " + obter_timestamp_iso());
+  
+  // Mostrar também a hora local se NTP funcionou
+  if (now > 1000000000) {
+    struct tm timeinfo;
+    localtime_r(&now, &timeinfo);
+    char readable[50];
+    strftime(readable, sizeof(readable), "%d/%m/%Y %H:%M:%S", &timeinfo);
+    Serial.println("Hora legível (GMT-3): " + String(readable));
+  }
+  Serial.println("========================");
+}
+
+// ==================== FUNÇÕES DE DEBUG ====================
+void debug_wifi_status() {
+  Serial.print("Status WiFi: ");
+  switch(WiFi.status()) {
+    case WL_CONNECTED:
+      Serial.println("Conectado");
+      break;
+    case WL_NO_SSID_AVAIL:
+      Serial.println("SSID não disponível");
+      break;
+    case WL_CONNECT_FAILED:
+      Serial.println("Falha na conexão");
+      break;
+    case WL_CONNECTION_LOST:
+      Serial.println("Conexão perdida");
+      break;
+    case WL_DISCONNECTED:
+      Serial.println("Desconectado");
+      break;
+    default:
+      Serial.println("Outro status");
+      break;
+  }
+}
+
+void debug_memoria() {
+  Serial.print("Memória livre: ");
+  Serial.print(ESP.getFreeHeap());
+  Serial.println(" bytes");
+}
+
+
 
 void configurarMotores() {
   // Torre Direita
@@ -125,20 +473,20 @@ void configurarMotores() {
 
 void configurarFinsDeCorso() {
   // Torre Direita
-  pinMode(FIM_CURSO_DIR_SUPERIOR, INPUT_PULLUP);
-  pinMode(FIM_CURSO_DIR_INFERIOR, INPUT_PULLUP);
+  pinMode(FIM_CURSO_DIR_SUPERIOR, INPUT);
+  pinMode(FIM_CURSO_DIR_INFERIOR, INPUT);
   
   // Torre Esquerda
-  pinMode(FIM_CURSO_ESQ_SUPERIOR, INPUT_PULLUP);
-  pinMode(FIM_CURSO_ESQ_INFERIOR, INPUT_PULLUP);
+  pinMode(FIM_CURSO_ESQ_SUPERIOR, INPUT);
+  pinMode(FIM_CURSO_ESQ_INFERIOR, INPUT);
   
   // Mecanismo Central
-  pinMode(FIM_CURSO_MECANISMO_MEIO_DIREITA, INPUT_PULLUP);
-  pinMode(FIM_CURSO_MECANISMO_MEIO_ESQUERDA, INPUT_PULLUP);
+  pinMode(FIM_CURSO_MECANISMO_MEIO_DIREITA, INPUT);
+  pinMode(FIM_CURSO_MECANISMO_MEIO_ESQUERDA, INPUT);
   
   // Motor Central
-  pinMode(FIM_CURSO_CENTRO_1, INPUT_PULLUP);
-  pinMode(FIM_CURSO_CENTRO_2, INPUT_PULLUP);
+  pinMode(FIM_CURSO_CENTRO_1, INPUT);
+  pinMode(FIM_CURSO_CENTRO_2, INPUT);
   
   Serial.println("Fins de curso configurados");
 }
@@ -380,7 +728,84 @@ void realizarHoming() {
 
 // ========== LOOP PRINCIPAL ==========
 
+void setup() {
+  Serial.begin(115200);
+  Serial.println("Iniciando Sistema de Controle do Elevador");
+
+  Wire.begin();
+
+    // Porta Serial 2 - Responsavel para comunicação do display
+  Serial2.begin(115200, SERIAL_8N1, RXD2, TXD2);
+   
+    if(!Serial2){
+      Serial.println("Erro ao Inicializar a porta Serial 2 -- Verifique!!!");
+      statusSR2 = "DISPLAY - ERROR";
+    }
+    else{
+      Serial.println("Serial 2 Inicializada com sucesso!!!");
+      statusSR2 = "DISPLAY - OK";
+    }
+  
+  Lcm.begin();
+
+  mlx.begin();
+  
+  temperaturaMLX = mlx.readAmbientTempC();
+
+  if(isnan(temperaturaMLX)){ // verificando se o retorno not a number, ou seja, sem retorno numerico. 
+    Serial.println("Verifique o Sensor MLX!");
+    Serial.println(" ");
+    statusMLX = "MLX - ERROR";
+  }
+  else{
+    Serial.println("MLX Inicializado com sucesso");
+    Serial.println(" ");
+    statusMLX = "MLX - OK";
+  }
+
+  // Inicializando o sensor BMP280
+ 
+  if(!bmp.begin(0x76)){
+    Serial.println("Verifique o Sensor BMP!");
+    Serial.println(" ");
+    statusBMP = "BMP - ERROR";
+  }
+  else{
+    Serial.println("BMP Inicializado com sucesso!");
+    Serial.println(" ");
+    statusBMP = "BMP - OK";
+  }
+
+
+  Lcm.changePicId(picIdIntro);
+
+
+  // Conectar ao WiFi
+  conectar_wifi();
+  
+  // Fazer login inicial
+  fazer_login();
+  
+  // Configurar NTP para timestamps reais
+  configurar_ntp();
+  
+  // Configurar pinos dos motores como saída
+  configurarMotores();
+  
+  // Configurar pinos dos fins de curso como entrada com pullup
+  configurarFinsDeCorso();
+  
+  // Desabilitar todos os motores inicialmente
+  desabilitarTodosMotores();
+  
+  // Realizar homing (ir para posição inicial)
+ // realizarHoming();
+  
+  Serial.println("Sistema Pronto!");
+}
+
 void loop() {
+  /*
   // Verificar se está no limite superior
   if (digitalRead(FIM_CURSO_DIR_SUPERIOR) == LOW || 
       digitalRead(FIM_CURSO_ESQ_SUPERIOR) == LOW) {
@@ -402,7 +827,52 @@ void loop() {
     estadoAtual = direcaoMovimento ? SUBINDO : DESCENDO;
     moverTorresSincronizadas(direcaoMovimento, 10); // Mover 10 passos por vez
   }
-  
+  */
   // Pequeno delay para não sobrecarregar o processador
   delay(1);
+
+
+ if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("WiFi desconectado. Tentando reconectar...");
+    conectar_wifi();
+    return;
+  }
+  
+  // Verificar se precisa tentar ressincronizar NTP
+  if (!ntp_synchronized && (millis() - last_ntp_attempt >= ntp_retry_interval)) {
+    Serial.println("Tentando ressincronizar NTP...");
+    tentar_resincronizar_ntp();
+    last_ntp_attempt = millis();
+  }
+  
+  // Verificar se é hora de coletar dados
+  if (millis() - last_reading_time >= reading_interval) {
+    // Debug do timestamp
+    debug_timestamp();
+    
+    // Coletar dados dos sensores
+    SensorData dados = coletar_dados_sensores();
+    
+    if (dados.valida) {
+      // Verificar se o token ainda é válido
+      if (millis() - last_token_time >= token_lifetime || jwt_token == "") {
+        Serial.println("Token expirado ou inexistente. Fazendo novo login...");
+        fazer_login();
+      }
+      
+      // Enviar dados para a API
+      if (jwt_token != "") {
+        enviar_dados_api(dados);
+      }
+    }
+    
+    last_reading_time = millis();
+  }
+  
+  delay(1000); // Pequeno delo sobrecarregar o loop
+
+
+
+
+
 }
