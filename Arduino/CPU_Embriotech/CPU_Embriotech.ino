@@ -1,7 +1,7 @@
 // Código para ESP32 - Sistema de Elevador com 3 Motores de Passo
 // Compatível com Arduino IDE
 
-
+#include "config.h"
 
 // ========== CONFIGURAÇÕES DO SISTEMA ==========
 
@@ -18,7 +18,24 @@
 // ========== BIBLIOTECAS ==========
 // Bibliotecas Sensores e Atuadores 
 
-#include "config.h"
+LcmString statusMotor();
+LcmString dataInicialLote();
+LcmString dataFinalLote();
+LcmString loteOvos();
+
+LcmVar LigarMotor();
+LcmVar reinicializarSistema();
+
+LcmVar imprimeUmidade();
+LcmVar imprimeTemperatura();
+LcmVar imprimePressao();
+
+LcmVar limparGraficoTemperatura();
+LcmVar limparGraficoUmidade();
+LcmVar limparGraficoPressao();
+
+
+
 
 // ========== OBJETOS DOS SENSORES ==========
 Adafruit_MLX90614 mlx = Adafruit_MLX90614();

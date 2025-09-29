@@ -72,6 +72,7 @@ const char* username = "processador";     // Nome do usuário para o ESP32
 const char* user_password = "Outside@123456";  // Senha do usuário para o ESP32
 const char* lote_id = "ESP32_LOTE_TCC"; // Identificador do lote de ovos
 
+const char* dataFinalLote = "15-12-2025"; // Data final do lote de ovos
 
 
 
