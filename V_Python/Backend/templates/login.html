@@ -37,10 +37,34 @@ block content %}
   document.addEventListener("DOMContentLoaded", function () {
     const loginForm = document.getElementById("loginForm");
 
-    // Se já tiver token, redireciona para dashboard
-    if (localStorage.getItem("embryotech_token")) {
-      window.location.href = "{{ url_for('dashboard') }}";
-      return;
+    // Verificar e exibir mensagens de expiração
+    const urlParams = new URLSearchParams(window.location.search);
+    const expired = urlParams.get("expired");
+    const reason = urlParams.get("reason");
+
+    if (expired === "true") {
+      const messages = {
+        "Token expirado":
+          "Sua sessão expirou. Por favor, faça login novamente.",
+        "Sessão expirada por inatividade":
+          "Sua sessão foi encerrada por inatividade (15 minutos sem uso). Por favor, faça login novamente.",
+        "Credenciais inválidas":
+          "Suas credenciais são inválidas. Por favor, faça login novamente.",
+        default: "Sua sessão expirou. Por favor, faça login novamente.",
+      };
+
+      const message = messages[reason] || messages["default"];
+      showError(message, true);
+
+      // Limpar URL sem recarregar a página
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
+    // Se já tiver token válido, verificar antes de redirecionar
+    const token = localStorage.getItem("embryotech_token");
+    if (token) {
+      // Verificar se o token ainda é válido
+      validateTokenAndRedirect(token);
     }
 
     loginForm.addEventListener("submit", async (e) => {
@@ -69,11 +93,16 @@ block content %}
 
         if (response.ok) {
           localStorage.setItem("embryotech_token", data.token);
+
+          // Aguardar um pouco antes de redirecionar
+          await new Promise((resolve) => setTimeout(resolve, 300));
+
           window.location.href = "{{ url_for('dashboard') }}";
         } else {
           handleLoginError(response.status);
         }
       } catch (error) {
+        console.error("Erro no login:", error);
         showError(
           "Não foi possível conectar ao servidor. Verifique sua conexão.",
           true
@@ -97,6 +126,40 @@ block content %}
           break;
         default:
           showError("Erro ao fazer login", true);
+      }
+    }
+
+    // Função para validar token antes de redirecionar
+    async function validateTokenAndRedirect(token) {
+      try {
+        // Tentar decodificar o token
+        const payload = JSON.parse(atob(token.split(".")[1]));
+
+        if (!payload || !payload.exp) {
+          // Token sem expiração, remover
+          localStorage.removeItem("embryotech_token");
+          return;
+        }
+
+        const now = Math.floor(Date.now() / 1000);
+        const expiresIn = payload.exp - now;
+
+        // Se o token expirou, remover e não redirecionar
+        if (expiresIn < 30) {
+          localStorage.removeItem("embryotech_token");
+          showError(
+            "Sua sessão anterior expirou. Por favor, faça login novamente.",
+            true
+          );
+          return;
+        }
+
+        // Token válido, redirecionar
+        window.location.href = "{{ url_for('dashboard') }}";
+      } catch (e) {
+        // Token inválido, remover
+        console.error("Token inválido:", e);
+        localStorage.removeItem("embryotech_token");
       }
     }
   });

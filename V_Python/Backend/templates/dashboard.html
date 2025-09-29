@@ -499,10 +499,139 @@
 
 {% endblock %} {% block scripts %} {{ super() }}
 <script>
+  // ============================================
+  // SISTEMA DE VALIDAÇÃO DE TOKEN E TIMEOUT
+  // ============================================
+
+  // Configurações de timeout
+  const INACTIVITY_TIMEOUT = 15 * 60 * 1000; // 15 minutos
+  let inactivityTimer = null;
+  let lastActivityTime = Date.now();
+
   // Variáveis globais
   let IS_ADMIN = false;
   let tempChart, umidChart, pressChart;
   let USER_DATA = null;
+
+  // Função para verificar se o token está expirado
+  function isTokenExpired(token) {
+    try {
+      const payload = parseJwt(token);
+      if (!payload || !payload.exp) {
+        console.log("Token sem data de expiração");
+        return true;
+      }
+
+      const now = Math.floor(Date.now() / 1000);
+      const expiresIn = payload.exp - now;
+
+      console.log(`Token expira em ${expiresIn} segundos`);
+      return expiresIn < 30;
+    } catch (e) {
+      console.error("Erro ao verificar expiração do token:", e);
+      return true;
+    }
+  }
+
+  // Função para validar token com o servidor
+  async function validateToken() {
+    const token = localStorage.getItem("embryotech_token");
+
+    if (!token) {
+      console.log("Nenhum token encontrado");
+      return false;
+    }
+
+    if (isTokenExpired(token)) {
+      console.log("Token expirado");
+      return false;
+    }
+
+    try {
+      const response = await fetch("/api/usuarios", {
+        method: "HEAD",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.status === 401) {
+        console.log("Token inválido ou expirado (401)");
+        return false;
+      }
+
+      return response.ok;
+    } catch (error) {
+      console.error("Erro ao validar token:", error);
+      return false;
+    }
+  }
+
+  // Função para logout forçado
+  async function forceLogout(reason = "Token expirado") {
+    console.log(`Logout forçado: ${reason}`);
+
+    if (inactivityTimer) {
+      clearTimeout(inactivityTimer);
+    }
+
+    localStorage.removeItem("embryotech_token");
+    window.location.href = `{{ url_for('login') }}?expired=true&reason=${encodeURIComponent(
+      reason
+    )}`;
+  }
+
+  // Resetar timer de inatividade
+  function resetInactivityTimer() {
+    lastActivityTime = Date.now();
+
+    if (inactivityTimer) {
+      clearTimeout(inactivityTimer);
+    }
+
+    inactivityTimer = setTimeout(() => {
+      forceLogout("Sessão expirada por inatividade");
+    }, INACTIVITY_TIMEOUT);
+  }
+
+  // Monitorar atividade do usuário
+  function setupActivityMonitoring() {
+    const events = [
+      "mousedown",
+      "mousemove",
+      "keypress",
+      "scroll",
+      "touchstart",
+      "click",
+    ];
+
+    events.forEach((event) => {
+      document.addEventListener(event, resetInactivityTimer, true);
+    });
+
+    resetInactivityTimer();
+    console.log(
+      `Monitoramento de inatividade ativado (${
+        INACTIVITY_TIMEOUT / 60000
+      } minutos)`
+    );
+  }
+
+  // Interceptor global para requisições fetch
+  const originalFetch = window.fetch;
+  window.fetch = async function (...args) {
+    try {
+      const response = await originalFetch.apply(this, args);
+
+      if (response.status === 401) {
+        console.log("Requisição retornou 401 - Token inválido");
+        forceLogout("Credenciais inválidas");
+        throw new Error("Token inválido");
+      }
+
+      return response;
+    } catch (error) {
+      throw error;
+    }
+  };
 
   // Função para verificar se é admin via token
   function parseJwt(token) {
@@ -524,7 +653,6 @@
 
       if (response.ok) {
         const usuarios = await response.json();
-        // Pegar dados do usuário atual baseado no token
         const payload = parseJwt(token);
         if (payload) {
           const usuarioAtual = usuarios.find((u) => u.id === payload.id);
@@ -540,39 +668,65 @@
     return false;
   }
 
-  // Inicialização quando a página carrega
-  document.addEventListener("DOMContentLoaded", async function () {
+  // Função de inicialização com validação
+  async function initializeDashboard() {
+    console.log("=== INICIALIZANDO DASHBOARD ===");
+
     const token = localStorage.getItem("embryotech_token");
+
     if (!token) {
-      handleLogout();
-      return;
+      console.log("Nenhum token - redirecionando para login");
+      window.location.href = "{{ url_for('login') }}";
+      return false;
     }
 
-    // Verificar se é admin através do token
-    const payload = parseJwt(token);
-    console.log("Payload do token:", payload);
+    const container = document.getElementById("lastReadingContainer");
+    if (container) {
+      container.innerHTML = "<p>Validando sessão...</p>";
+    }
 
+    const isValid = await validateToken();
+
+    if (!isValid) {
+      console.log("Token inválido - forçando logout");
+      await forceLogout("Sessão expirada");
+      return false;
+    }
+
+    console.log("Token válido - prosseguindo");
+
+    const payload = parseJwt(token);
     if (payload) {
       IS_ADMIN = payload.is_admin === true;
-      console.log("IS_ADMIN pelo token:", IS_ADMIN);
+      console.log("IS_ADMIN:", IS_ADMIN);
     }
 
-    // DOUBLE CHECK: Verificar também via API se necessário
     if (!IS_ADMIN) {
       IS_ADMIN = await verificarUsuarioAdmin();
-      console.log("IS_ADMIN verificado via API:", IS_ADMIN);
     }
 
+    setupActivityMonitoring();
     setupDashboard();
+
+    console.log("=== DASHBOARD INICIALIZADO ===");
+    return true;
+  }
+
+  // Inicialização quando a página carrega
+  document.addEventListener("DOMContentLoaded", async function () {
+    await initializeDashboard();
   });
+
+  // ============================================
+  // FUNÇÕES DO DASHBOARD
+  // ============================================
 
   function setupDashboard() {
     setupEventListeners();
     setupCharts();
     setupAdminControls();
     initLoteFilter();
-    // CORREÇÃO: Não buscar leituras automaticamente - só quando lote for selecionado
-    updateLastReading(null); // Inicializar com mensagem vazia
+    updateLastReading(null);
   }
 
   function setupAdminControls() {
@@ -582,66 +736,44 @@
 
     console.log("=== DEBUG ADMIN CONTROLS ===");
     console.log("IS_ADMIN:", IS_ADMIN);
-    console.log("btnParametros encontrado:", !!btnParametros);
-    console.log("btnRelatorios encontrado:", !!btnRelatorios);
-    console.log("btnUsuarios encontrado:", !!btnUsuarios);
 
     if (IS_ADMIN) {
       console.log("Configurando controles de admin...");
 
-      // Configurar botão Parâmetros
       if (btnParametros) {
         btnParametros.style.display = "inline-block";
         btnParametros.onclick = function (e) {
           e.preventDefault();
-          console.log("Clique em Parâmetros - abrindo modal");
           abrirModalParametros();
         };
-        console.log("Botão Parâmetros configurado");
-      } else {
-        console.error("Botão btnParametros não encontrado!");
       }
 
-      // Configurar botão Relatórios
       if (btnRelatorios) {
         btnRelatorios.style.display = "inline-block";
         btnRelatorios.onclick = function (e) {
           e.preventDefault();
-          console.log("Clique em Relatórios - abrindo modal");
           abrirModalRelatorios();
         };
-        console.log("Botão Relatórios configurado");
-      } else {
-        console.error("Botão btnRelatorios não encontrado!");
       }
 
-      // Configurar botão Usuários
       if (btnUsuarios) {
         btnUsuarios.style.display = "inline-block";
         btnUsuarios.onclick = function (e) {
           e.preventDefault();
-          console.log("Clique em Usuários - abrindo modal");
           abrirModalUsuarios();
         };
-        console.log("Botão Usuários configurado");
-      } else {
-        console.error("Botão btnUsuarios não encontrado!");
       }
 
-      // Configurar modais
       setTimeout(() => {
         setupParametroModal();
         setupRelatoriosModal();
         setupUsuariosModal();
-        console.log("Modais configurados");
       }, 100);
     } else {
-      console.log("Usuário não é admin - ocultando botões");
       if (btnParametros) btnParametros.style.display = "none";
       if (btnRelatorios) btnRelatorios.style.display = "none";
       if (btnUsuarios) btnUsuarios.style.display = "none";
     }
-    console.log("=== FIM DEBUG ADMIN CONTROLS ===");
   }
 
   function setupEventListeners() {
@@ -654,7 +786,6 @@
   }
 
   function setupCharts() {
-    // CORREÇÃO 5: Iniciar gráficos vazios
     tempChart = new Chart(document.getElementById("tempChart"), {
       type: "line",
       data: {
@@ -756,15 +887,12 @@
   // === FUNÇÕES DE PARÂMETROS ===
 
   function abrirModalParametros() {
-    console.log("Função abrirModalParametros chamada");
     const modal = document.getElementById("parametroModal");
     if (modal) {
-      console.log("Modal encontrado, abrindo...");
       modal.style.display = "flex";
       setupModalCloseEvents(modal);
       carregarEmpresas();
 
-      // Reset estados
       const filtersSection = document.querySelector(".parametro-filters");
       const parametroForm = document.getElementById("parametroForm");
       const parametrosEncontrados = document.getElementById(
@@ -774,18 +902,13 @@
       if (filtersSection) filtersSection.style.display = "block";
       if (parametroForm) parametroForm.style.display = "none";
       if (parametrosEncontrados) parametrosEncontrados.style.display = "none";
-    } else {
-      console.error("Modal parametroModal não encontrado!");
     }
   }
 
   function setupParametroModal() {
-    console.log("Setup parametro modal iniciado");
-
-    // Configurar eventos dos botões do modal
     const btnFechar = document.getElementById("btnFecharParametros");
     const btnNovo = document.getElementById("btnNovoParametro");
-    const btnBuscar = document.getElementById("btnBuscarParametros"); // CORREÇÃO 1
+    const btnBuscar = document.getElementById("btnBuscarParametros");
     const btnCancelar = document.getElementById("btnCancelar");
     const empresaSelect = document.getElementById("empresaSelect");
     const parametroForm = document.getElementById("parametroForm");
@@ -812,7 +935,6 @@
       };
     }
 
-    // CORREÇÃO 1: Implementar função buscar parâmetros
     if (btnBuscar) {
       btnBuscar.onclick = async function () {
         await buscarParametros();
@@ -850,11 +972,8 @@
         await salvarParametro(e);
       };
     }
-
-    console.log("Setup parametro modal concluído");
   }
 
-  // CORREÇÃO 1: Nova função para buscar parâmetros
   async function buscarParametros() {
     const empresa = document.getElementById("empresaSelect").value;
     const lote = document.getElementById("loteSelect").value;
@@ -927,16 +1046,11 @@
   }
 
   function editarParametro(id) {
-    // Buscar dados do parâmetro e abrir formulário para edição
     buscarParametroPorId(id);
   }
 
   async function buscarParametroPorId(id) {
     try {
-      const token = localStorage.getItem("embryotech_token");
-
-      // Como precisamos buscar um parâmetro específico por ID e não temos endpoint direto,
-      // vamos usar uma abordagem diferente: buscar pelos dados da linha clicada
       const parametrosEncontrados = document.getElementById(
         "parametrosEncontrados"
       );
@@ -947,7 +1061,6 @@
         for (let linha of linhas) {
           const primeiraColuna = linha.querySelector("td");
           if (primeiraColuna && primeiraColuna.textContent == id) {
-            // Extrair dados da linha da tabela
             const colunas = linha.querySelectorAll("td");
             const parametro = {
               id: id,
@@ -985,7 +1098,6 @@
   }
 
   function preencherFormularioEdicao(parametro) {
-    // Esconder seções de busca e lista
     const filtersSection = document.querySelector(".parametro-filters");
     const parametrosEncontrados = document.getElementById(
       "parametrosEncontrados"
@@ -996,7 +1108,6 @@
     if (parametrosEncontrados) parametrosEncontrados.style.display = "none";
     if (parametroForm) parametroForm.style.display = "block";
 
-    // Preencher o formulário com os dados do parâmetro
     const form = parametroForm;
     form.querySelector("[name='id']").value = parametro.id;
     form.querySelector("[name='empresa']").value = parametro.empresa;
@@ -1010,7 +1121,6 @@
     form.querySelector("[name='estagio_ovo']").value =
       parametro.estagio_ovo || "";
 
-    // Focar no primeiro campo
     form.querySelector("[name='empresa']").focus();
   }
 
@@ -1072,7 +1182,6 @@
     const parametroForm = document.getElementById("parametroForm");
     const data = Object.fromEntries(new FormData(parametroForm).entries());
 
-    // Validação
     if (!data.empresa || !data.lote || !data.temp_ideal || !data.umid_ideal) {
       showError("Campos obrigatórios faltando");
       return;
@@ -1106,10 +1215,8 @@
       if (response.ok) {
         showMessage("Parâmetros salvos com sucesso!", "success");
 
-        // Se foi uma edição, voltar para a lista de parâmetros
         if (data.id) {
           setTimeout(async () => {
-            // Voltar para a lista de parâmetros
             const filtersSection = document.querySelector(".parametro-filters");
             const parametrosEncontrados = document.getElementById(
               "parametrosEncontrados"
@@ -1119,11 +1226,9 @@
             if (filtersSection) filtersSection.style.display = "block";
             if (parametroForm) parametroForm.style.display = "none";
 
-            // Buscar parâmetros atualizados
             await buscarParametros();
           }, 1500);
         } else {
-          // Se foi criação nova, fechar modal
           setTimeout(() => {
             document.getElementById("parametroModal").style.display = "none";
           }, 1500);
@@ -1140,14 +1245,10 @@
   // === FUNÇÕES DE RELATÓRIOS ===
 
   function abrirModalRelatorios() {
-    console.log("Função abrirModalRelatorios chamada");
     const modal = document.getElementById("relatoriosModal");
     if (modal) {
-      console.log("Modal relatórios encontrado, abrindo...");
       modal.style.display = "flex";
       setupModalCloseEvents(modal);
-    } else {
-      console.error("Modal relatoriosModal não encontrado!");
     }
   }
 
@@ -1155,7 +1256,7 @@
     setupModalCloseEvents(document.getElementById("relatoriosModal"));
     setupModalCloseEvents(document.getElementById("auditoriaModal"));
     setupModalCloseEvents(document.getElementById("leiturasRelatorioModal"));
-    setupModalCloseEvents(document.getElementById("usuariosRelatorioModal")); // CORREÇÃO 4
+    setupModalCloseEvents(document.getElementById("usuariosRelatorioModal"));
   }
 
   function abrirRelatorioAuditoria() {
@@ -1180,14 +1281,12 @@
     }
   }
 
-  // CORREÇÃO 4: Implementar função completa de relatório de usuários
   function abrirRelatorioUsuarios() {
     document.getElementById("relatoriosModal").style.display = "none";
     const modal = document.getElementById("usuariosRelatorioModal");
     if (modal) {
       modal.style.display = "flex";
       setupModalCloseEvents(modal);
-      // Carregar automaticamente na abertura
       buscarRelatorioUsuarios();
     }
   }
@@ -1341,7 +1440,6 @@
     container.innerHTML = html;
   }
 
-  // CORREÇÃO 3: Implementar função completa de buscar relatório de leituras
   async function buscarRelatorioLeituras() {
     const lote = document.getElementById("filtroLoteRelatorio").value;
     const dataInicio = document.getElementById("dataInicioLeituras").value;
@@ -1429,7 +1527,6 @@
     container.innerHTML = html;
   }
 
-  // CORREÇÃO 4: Implementar função completa de buscar relatório de usuários
   async function buscarRelatorioUsuarios() {
     const tipoUsuario = document.getElementById("filtroTipoUsuario").value;
 
@@ -1442,7 +1539,6 @@
       if (response.ok) {
         let usuarios = await response.json();
 
-        // Filtrar por tipo se especificado
         if (tipoUsuario === "admin") {
           usuarios = usuarios.filter((u) => u.is_admin);
         } else if (tipoUsuario === "user") {
@@ -1515,20 +1611,15 @@
   // === FUNÇÕES DE USUÁRIOS ===
 
   function abrirModalUsuarios() {
-    console.log("Função abrirModalUsuarios chamada");
     const modal = document.getElementById("usuariosModal");
     if (modal) {
-      console.log("Modal usuários encontrado, abrindo...");
       modal.style.display = "flex";
       setupModalCloseEvents(modal);
       carregarListaUsuarios();
-    } else {
-      console.error("Modal usuariosModal não encontrado!");
     }
   }
 
   function setupUsuariosModal() {
-    // Configurar formulário de alteração de senha (mantém funcionalidade existente)
     const formAlterarSenha = document.getElementById("alterarSenhaForm");
     if (formAlterarSenha) {
       formAlterarSenha.onsubmit = async function (e) {
@@ -1537,7 +1628,6 @@
       };
     }
 
-    // Configurar formulário de cadastro de usuário (NOVO)
     const formCadastroUsuario = document.getElementById("cadastroUsuarioForm");
     if (formCadastroUsuario) {
       formCadastroUsuario.onsubmit = async function (e) {
@@ -1641,20 +1731,15 @@
     });
   }
 
-  // === FUNÇÕES DE CADASTRO DE USUÁRIO (NOVAS) ===
-
   function abrirFormularioCadastroUsuario() {
     const form = document.getElementById("formCadastroUsuario");
     if (form) {
       form.style.display = "block";
-      // Limpar campos
       document.getElementById("novoUsername").value = "";
       document.getElementById("novoEmail").value = "";
       document.getElementById("novoPasswordUsuario").value = "";
       document.getElementById("confirmarPasswordUsuario").value = "";
       document.getElementById("novoUsuarioAdmin").checked = false;
-
-      // Focar no primeiro campo
       document.getElementById("novoUsername").focus();
     }
   }
@@ -1675,7 +1760,6 @@
     ).value;
     const isAdmin = document.getElementById("novoUsuarioAdmin").checked;
 
-    // Validações
     if (!username || !email || !password) {
       showError("Preencha todos os campos obrigatórios");
       return;
@@ -1696,7 +1780,6 @@
       return;
     }
 
-    // Validar formato do email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       showError("Digite um email válido");
@@ -1706,7 +1789,6 @@
     try {
       const token = localStorage.getItem("embryotech_token");
 
-      // Primeiro, criar o usuário
       const response = await fetch("/api/register", {
         method: "POST",
         headers: {
@@ -1723,9 +1805,7 @@
       if (response.ok) {
         const result = await response.json();
 
-        // Se deve ser admin, promover após criação
         if (isAdmin) {
-          // Primeiro buscar o ID do usuário criado
           const usuariosResponse = await fetch("/api/usuarios", {
             headers: { Authorization: `Bearer ${token}` },
           });
@@ -1735,7 +1815,6 @@
             const usuarioCriado = usuarios.find((u) => u.username === username);
 
             if (usuarioCriado) {
-              // Promover a admin
               const adminResponse = await fetch(
                 `/api/usuarios/${usuarioCriado.id}/admin`,
                 {
@@ -1757,7 +1836,6 @@
 
         showMessage("Usuário cadastrado com sucesso!", "success");
 
-        // Recarregar lista de usuários e fechar formulário
         setTimeout(() => {
           carregarListaUsuarios();
           cancelarCadastroUsuario();
@@ -1877,7 +1955,6 @@
 
   // === FUNÇÕES DE EXPORTAÇÃO PDF ===
 
-  // CORREÇÃO 2: Implementar exportação PDF de auditoria
   async function exportarAuditoriaPDF() {
     const usuarioId = document.getElementById("filtroUsuario").value;
     const dataInicio = document.getElementById("dataInicio").value;
@@ -1920,7 +1997,6 @@
     }
   }
 
-  // CORREÇÃO 3: Implementar exportação PDF de leituras
   async function exportarLeiturasPDF() {
     const lote = document.getElementById("filtroLoteRelatorio").value;
     const dataInicio = document.getElementById("dataInicioLeituras").value;
@@ -1963,7 +2039,6 @@
     }
   }
 
-  // CORREÇÃO 4: Implementar exportação PDF de usuários
   async function exportarUsuariosPDF() {
     const tipoUsuario = document.getElementById("filtroTipoUsuario").value;
 
@@ -2030,17 +2105,14 @@
         return dateB - dateA;
       });
 
-      // CORREÇÃO 5: Só atualiza gráficos se um lote específico for selecionado
       if (readings.length > 0) {
         updateLastReading(readings[0]);
         if (lote) {
-          // Só atualiza gráficos se um lote for selecionado
           updateCharts([...readings].reverse());
         }
       } else {
         updateLastReading(null);
         if (lote) {
-          // Limpa gráficos se lote selecionado mas sem dados
           updateCharts([]);
         }
       }
@@ -2078,11 +2150,10 @@
           loteLabel.textContent = `Lote: ${loteSelecionado}`;
           await fetchReadings(loteSelecionado);
         } else {
-          // CORREÇÃO 5: Limpar gráficos quando "Todos os Lotes" for selecionado
           loteLabel.textContent =
             "Lote: Selecione um lote para visualizar os dados";
-          updateCharts([]); // Limpa os gráficos
-          updateLastReading(null); // Limpa a última leitura
+          updateCharts([]);
+          updateLastReading(null);
         }
       });
     } catch (error) {
@@ -2121,7 +2192,6 @@
 
   function updateCharts(readings) {
     if (!readings || readings.length === 0) {
-      // Limpar gráficos
       tempChart.data.labels = [];
       tempChart.data.datasets[0].data = [];
       tempChart.update();
@@ -2288,7 +2358,6 @@
 </script>
 
 <style>
-  /* Estilos adicionais para o formulário de cadastro */
   #formCadastroUsuario {
     background-color: #f8f9fa;
     padding: 20px;

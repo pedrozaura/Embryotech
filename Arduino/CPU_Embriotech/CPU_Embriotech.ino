@@ -34,6 +34,8 @@ LcmVar limparGraficoTemperatura(30);
 LcmVar limparGraficoUmidade(31);
 LcmVar limparGraficoPressao(32);
 
+LcmVar calibrarSistema(11);
+
 
 
 
