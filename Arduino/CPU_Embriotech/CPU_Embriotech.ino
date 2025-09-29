@@ -18,21 +18,21 @@
 // ========== BIBLIOTECAS ==========
 // Bibliotecas Sensores e Atuadores 
 
-LcmString statusMotor();
-LcmString dataInicialLote();
-LcmString dataFinalLote();
-LcmString loteOvos();
+LcmString statusMotorDisplay(21);
+LcmString dataInicialLoteDisplay(60, 10);
+LcmString dataFinalLoteDisplay(70, 10);
+LcmString loteOvosDisplay(50, 10);
 
-LcmVar LigarMotor();
-LcmVar reinicializarSistema();
+LcmVar LigarMotor(10);
+LcmVar reinicializarSistema(15);
 
-LcmVar imprimeUmidade();
-LcmVar imprimeTemperatura();
-LcmVar imprimePressao();
+LcmVar imprimeUmidade(21);
+LcmVar imprimeTemperatura(20);
+LcmVar imprimePressao(22);
 
-LcmVar limparGraficoTemperatura();
-LcmVar limparGraficoUmidade();
-LcmVar limparGraficoPressao();
+LcmVar limparGraficoTemperatura(30);
+LcmVar limparGraficoUmidade(31);
+LcmVar limparGraficoPressao(32);
 
 
 
@@ -97,7 +97,7 @@ bool ultimoEstadoMeioEsquerda = false;
 
 char loteOvos[20] = "";
 char dataInicialLote[20] = "";
-char dataFinalLote[20] = "";
+
 
 const int picIdIntro(0); // Coloca o numero da tela Inicial, função para qual quando reiniciar o display essa vai enviar para tela inicial da apresentação do display.
 const int picIdMain(153); // leva o numero da tela Principal.
