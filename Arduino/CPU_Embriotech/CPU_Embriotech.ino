@@ -25,7 +25,8 @@ LcmString dataFinalLoteDisplay(70, 10);
 LcmString loteOvosDataInicial(80, 10);
 LcmString loteOvosDataFinal(90, 10);
 LcmString statusMotorDisplay(100, 10);
-LcmString LogInicioSistema(110, 50);
+
+
 
 LcmString logLinha1(160, 20);
 LcmString logLinha2(180, 20);
@@ -33,13 +34,16 @@ LcmString logLinha3(200, 20);
 LcmString logLinha4(220, 20);
 LcmString logLinha5(240, 20);
 LcmString logLinha6(260, 20);
+LcmString StatusCalibracao(280, 40);
 
 
-LcmVar LigarMotor(10);
 LcmVar calibrarSistema(11);
-LcmVar statusOvoscopia(14);
+ 
 // Processo OK
-LcmVar reinicializarSistema(15);
+LcmVar LigarMotor(10);
+
+LcmVar statusOvoscopia(14);
+LcmVar reinicializarSistema(15); 
 
 // grupo OK
 LcmVar imprimeTemperatura(20);
@@ -52,7 +56,7 @@ LcmVar limparGraficoUmidade(31);
 LcmVar limparGraficoPressao(32);
 
 
-
+LcmVar LogInicioSistema(110);
 
 
 
@@ -135,12 +139,19 @@ float pressaoBMP = 0;
 float pressaoConvertida = 0;
 float altitudeBMP = 0;
 
+int contadorEnvioDados = 0;
+int contadorEnvioDadosErro = 0;
+
 unsigned long tempoAnterior = 0;
 unsigned long intervaloTempo = 3000; // equivalente a 1 segundo.
 const long intervaloGraficos = 2000; // Intervalo de 2 segundo
 
 char Characters[40];
+char linha1[20];
 
+char linha3[20];  // Buffer conexao com o Servidor para impressao no display
+char linha4[20];  // contador de pacotes enviados corretamente 
+char linha5[20];  // contador de pacotes com erros
 
 String jwt_token = "";
 unsigned long last_token_time = 0;
@@ -334,11 +345,22 @@ void conectar_wifi() {
     Serial.println("\nFalha ao conectar ao WiFi");
     Serial.println("\nFalha! Modo AP ativado.");
     currentStatus = ERROR_STATE;
+
+    snprintf(linha1, sizeof(linha1), "ERRO REDE WI-FI");
+    String textoIP = String(linha1);
+    logLinha1.write(textoIP);
+    Serial.println(textoIP);
+
     startAPMode();
   } else {
     Serial.println("\nWiFi Conectado com sucesso!");
     Serial.printf("IP Address: %s\n", WiFi.localIP().toString().c_str());
     Serial.printf("Intensidade Sinal: %d dBm\n", WiFi.RSSI());
+          
+    snprintf(linha1, sizeof(linha1), "IP: %s", WiFi.localIP().toString().c_str());
+    String textoIP = String(linha1);
+    logLinha1.write(textoIP);
+    Serial.println(textoIP);
   }
 }
 
@@ -463,6 +485,11 @@ bool enviar_dados_api(SensorData dados) {
     Serial.println("Dados enviados com sucesso!");
     Serial.println("Resposta: " + response);
     http.end();
+    contadorEnvioDados = contadorEnvioDados + 1;
+    snprintf(linha4, sizeof(linha4), "PCT SUCESSO: %d", contadorEnvioDados);
+    String textoContador = String(linha4);
+    logLinha4.write(textoContador);
+  
     return true;
   } else {
     Serial.print("Erro ao enviar dados. Código HTTP: ");
@@ -477,12 +504,31 @@ bool enviar_dados_api(SensorData dados) {
     }
     
     http.end();
+    contadorEnvioDadosErro = contadorEnvioDadosErro + 1;
+    snprintf(linha5, sizeof(linha5), "PCT ERRO: %d", contadorEnvioDadosErro);
+    String textoContadorErro = String(linha5);
+    logLinha5.write(textoContadorErro);
+    
     return false;
   }
 }
 
+void atualizaStatusServidor() {
+  bool status = fazer_login();   // chama sua função
 
+  if (status) {
+    snprintf(linha3, sizeof(linha3), "Servidor On-Line!");
+  } else {
+    snprintf(linha3, sizeof(linha3), "Servidor Off-Line!");
+  }
 
+  // envia para o display
+  String textoServidor = String(linha3);
+  logLinha3.write(textoServidor);
+
+  // debug
+  Serial.println(textoServidor);
+}
 // Funçoes auxiliares
 // ==================== FUNÇÕES AUXILIARES ====================
 String obter_timestamp_iso() {
@@ -930,6 +976,8 @@ void setup() {
   // Realizar homing (ir para posição inicial)
  // realizarHoming();
   
+  atualizaStatusServidor();
+
   Serial.println("Sistema Pronto!");
 
   // String msg = "Sistema Iniciado com sucesso \n";
@@ -940,7 +988,7 @@ void setup() {
 
 void loop() {
   unsigned long tempoAtual = millis();
-  
+  static unsigned long ultimoCheck = 0; // Para validação se o sistema esta conectado ou nao ao Servidor API
   
   /*
   // Verificar se está no limite superior
@@ -969,7 +1017,7 @@ void loop() {
   delay(1);
 
 
- if (WiFi.status() != WL_CONNECTED) {
+  if (WiFi.status() != WL_CONNECTED) {
     Serial.println("WiFi desconectado. Tentando reconectar...");
     conectar_wifi();
     return;
@@ -1119,10 +1167,44 @@ void loop() {
     }    
   }
 
+  if (LogInicioSistema.available()){
+    int value = LogInicioSistema.getData();
+    if (value == 110){
+       
+      char linha2[20];
+      snprintf(linha2, sizeof(linha2), "Sinal: %d dBm", WiFi.RSSI());
+      String textoSinal = String(linha2);
+      logLinha2.write(textoSinal);
+      Serial.println(textoSinal);
+
+      char linha6[20];
+      snprintf(linha6, sizeof(linha6), "BD COOPA: OFF-LINE");
+      String TextoLinha6 = String(linha6);
+      logLinha6.write(TextoLinha6);
+    }
 
 
+  }
 
+  if (millis() - ultimoCheck > 60000) { // a cada 60s
+    atualizaStatusServidor();
+    ultimoCheck = millis();
+  }
 
+  // VALIDAR ACIONAMENTO DO SISTEMA COMPLETO.
+
+  if (calibrarSistema.available()){
+    int value = calibrarSistema.getData();
+    char calibracao[40];
+    if(value == 11){
+      Serial.println("Chamando a função para calibrar o sistema.");
+      char calibracao[40] = "CALIBRACAO INICIADA";
+      String textoCalibracao = String(calibracao);
+      StatusCalibracao.write(textoCalibracao);
+      // Chamar a função que vai calibrar o sistema. Função ja esta prepronta. 
+      // quando finalizar a calibração Imprimir na tela do displaym, calivração concluida. 
+    }
+  }
 
 }
 

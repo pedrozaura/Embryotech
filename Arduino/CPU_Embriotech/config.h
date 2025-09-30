@@ -1,3 +1,15 @@
+/*
+
+  Posição Fios Drivers, Motores.
+  Motor Sistema Central de leitura fechamanto1 (Vermelho e Azul) Fechamento2 (Preto e Verde)
+  Motor Torre Direita fechamanto1 (Laranja e Azul) Fechamento2 (Marrom e Verde)
+  Motor Torre Esquerda fechamanto1 (Laranja e Azul) Fechamento2 (Marrom e Verde)
+
+*/
+
+
+
+
 #ifndef CONFIG_H
 #define CONFIG_H
 
