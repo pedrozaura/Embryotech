@@ -27,10 +27,17 @@ LcmString loteOvosDataFinal(90, 10);
 LcmString statusMotorDisplay(100, 10);
 LcmString LogInicioSistema(110, 50);
 
+LcmString logLinha1(160, 20);
+LcmString logLinha2(180, 20);
+LcmString logLinha3(200, 20);
+LcmString logLinha4(220, 20);
+LcmString logLinha5(240, 20);
+LcmString logLinha6(260, 20);
+
 
 LcmVar LigarMotor(10);
 LcmVar calibrarSistema(11);
-
+LcmVar statusOvoscopia(14);
 // Processo OK
 LcmVar reinicializarSistema(15);
 
@@ -1002,21 +1009,14 @@ void loop() {
 
   // Implementações Display a partir desse ponto iniciamos as regras 
 
-  
- // dados.pressaoBMP = bmp.readPressure() / 100.0F; // Converter para hPa
-  //dados.temperaturaBMP = bmp.readTemperature();
- // dados.altitudeBMP = bmp.readAltitude(1013.25); // Ajuste para a pressão ao nível do mar
+
   sensors_event_t humidity, temp;
   aht.getEvent(&humidity, &temp);
   temperaturaMLX = mlx.readObjectTempC();
   umidadeAHT = humidity.relative_humidity;
   pressaoBMP = bmp.readPressure() / 100.0F; // Ja realizando a conversao para hPa
 
-  // Serial.println("Dados Carregados Sensores: ");
-  // Serial.println(String(temperaturaMLX) + " - " + String(umidadeAHT) + " - " + String(pressaoBMP) + " - FIM");
-
-
-
+  // Função OK 
   if(reinicializarSistema.available()){  // Função OK
     int dadosLidos = reinicializarSistema.getData();
     Serial.println("Reiniciando o sistema...");
@@ -1098,36 +1098,32 @@ void loop() {
     Lcm.writeTrendCurve1(pressaoBMP);   
   }
 
-  
-
-
-  // Impressao no display dos dados do lote
-  if (loteOvosDisplay.available()){
-    int value = loteOvosDisplay.getData();
-    if (value == 14){
-  
-  //   char loteOvos[20] = lote_id;
+  // Impressao no display dos dados do lote -- OK
+  if (statusOvoscopia.available()){
+    int value = statusOvoscopia.getData();
+    if(value == 14){
+      char loteOvos[20] = "ESP32_LOTE_TCC";
       String textoLote = String(loteOvos); // Convertendo o Char para String para gravar no Display e escrevendo no Display
-  //   lote.write(textoLote);
-      Serial.println(textoLote);   
+      loteOvosDisplay.write(textoLote);
+      Serial.println(textoLote); 
+      
+      char dataInicialOvos[20] = "30/09/2025";
+      String textoLote2 = String(dataInicialOvos);
+      dataInicialLoteDisplay.write(textoLote2);
+      Serial.println(textoLote2);
 
-  //   char dataInicialLote[20] = dataInicialLote;
-      String textoLoteInicial = String(dataInicialLote);
-      dataInicialLoteDisplay.write(textoLoteInicial);
-      Serial.println(textoLoteInicial);
-
-    //  char dataFinalLote[20] = dataFinalLote;
-      String textoLoteFinal = String(dataFinalLote);
-      dataFinalLoteDisplay.write(textoLoteFinal);
-      Serial.println(textoLoteFinal);
-    }
-
-
-
+      char dataFinalOvos[20] = "15/12/2025";
+      String textoLote3 = String(dataFinalOvos);
+      dataFinalLoteDisplay.write(textoLote3);
+      Serial.println(textoLote3);
+    }    
+  }
 
 
 
-}
+
 
 
 }
+
+
