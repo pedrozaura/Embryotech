@@ -18,23 +18,33 @@
 // ========== BIBLIOTECAS ==========
 // Bibliotecas Sensores e Atuadores 
 
-LcmString statusMotorDisplay(21);
+
+LcmString loteOvosDisplay(50, 10);
 LcmString dataInicialLoteDisplay(60, 10);
 LcmString dataFinalLoteDisplay(70, 10);
-LcmString loteOvosDisplay(50, 10);
+LcmString loteOvosDataInicial(80, 10);
+LcmString loteOvosDataFinal(90, 10);
+LcmString statusMotorDisplay(100, 10);
+LcmString LogInicioSistema(110, 50);
+
 
 LcmVar LigarMotor(10);
+LcmVar calibrarSistema(11);
+
+// Processo OK
 LcmVar reinicializarSistema(15);
 
-LcmVar imprimeUmidade(21);
+// grupo OK
 LcmVar imprimeTemperatura(20);
+LcmVar imprimeUmidade(21);
 LcmVar imprimePressao(22);
 
+// grupo OK
 LcmVar limparGraficoTemperatura(30);
 LcmVar limparGraficoUmidade(31);
 LcmVar limparGraficoPressao(32);
 
-LcmVar calibrarSistema(11);
+
 
 
 
@@ -108,11 +118,22 @@ String statusBMP = "";
 String statusMLX = "";
 String statusSR2 = "";
 
-float temperaturaMLX = 0.0;
-float temperaturaBMP = 0.0;
-float pressaoBMP = 0.0;
-float altitudeBMP = 0.0;
-int luminosidadeLDR = 0;
+float temperaturaESP32 = 0;
+float temperaturaHTU = 0;
+float umidadeAHT = 0; 
+float temperaturaMLX = 0;
+float temperaturaAmbMLX = 0;
+float temperaturaBMP = 0;
+float pressaoBMP = 0;
+float pressaoConvertida = 0;
+float altitudeBMP = 0;
+
+unsigned long tempoAnterior = 0;
+unsigned long intervaloTempo = 3000; // equivalente a 1 segundo.
+const long intervaloGraficos = 2000; // Intervalo de 2 segundo
+
+char Characters[40];
+
 
 String jwt_token = "";
 unsigned long last_token_time = 0;
@@ -164,6 +185,11 @@ SensorData coletar_dados_sensores() {
     // Continuar mesmo sem pressão válida
     dados.pressao = 0;
   }
+
+  // Sempre que os dados forem coletados ocorre a impressao dos valores no display
+  imprimePressao.write(dados.pressao);
+  imprimeTemperatura.write(dados.temperatura);
+  imprimeUmidade.write(dados.umidade);
   
   // Mostrar dados coletados
   Serial.println("=== DADOS COLETADOS ===");
@@ -409,7 +435,7 @@ bool enviar_dados_api(SensorData dados) {
   
   doc["lote"] = lote_id;
   doc["data_inicial"] = timestamp;
-  doc["data_final"] = timestamp;
+  doc["data_final"] = dataFinalLote;
   
   String json_string;
   serializeJson(doc, json_string);
@@ -819,6 +845,9 @@ void realizarHoming() {
 
 void setup() {
   Serial.begin(115200);
+
+  Lcm.begin();
+
   Serial.println("Iniciando Sistema de Controle do Elevador");
 
   Wire.begin();
@@ -835,7 +864,6 @@ void setup() {
     statusSR2 = "DISPLAY - OK";
   }
   
-  Lcm.begin();
   mlx.begin();
   aht.begin();
   if (!aht.begin()) {
@@ -874,7 +902,6 @@ void setup() {
 
   Lcm.changePicId(picIdIntro);
 
-
   // Conectar ao WiFi
   conectar_wifi();
   
@@ -897,9 +924,17 @@ void setup() {
  // realizarHoming();
   
   Serial.println("Sistema Pronto!");
+
+  // String msg = "Sistema Iniciado com sucesso \n";
+  // msg.toCharArray(Characters, sizeof(Characters));
+  // LogInicioSistema.write(Characters, sizeof(Characters));
+
 }
 
 void loop() {
+  unsigned long tempoAtual = millis();
+  
+  
   /*
   // Verificar se está no limite superior
   if (digitalRead(FIM_CURSO_DIR_SUPERIOR) == LOW || 
@@ -964,10 +999,135 @@ void loop() {
     last_reading_time = millis();
   }
   
-  delay(1000); // Pequeno delo sobrecarregar o loop
+
+  // Implementações Display a partir desse ponto iniciamos as regras 
+
+  
+ // dados.pressaoBMP = bmp.readPressure() / 100.0F; // Converter para hPa
+  //dados.temperaturaBMP = bmp.readTemperature();
+ // dados.altitudeBMP = bmp.readAltitude(1013.25); // Ajuste para a pressão ao nível do mar
+  sensors_event_t humidity, temp;
+  aht.getEvent(&humidity, &temp);
+  temperaturaMLX = mlx.readObjectTempC();
+  umidadeAHT = humidity.relative_humidity;
+  pressaoBMP = bmp.readPressure() / 100.0F; // Ja realizando a conversao para hPa
+
+  // Serial.println("Dados Carregados Sensores: ");
+  // Serial.println(String(temperaturaMLX) + " - " + String(umidadeAHT) + " - " + String(pressaoBMP) + " - FIM");
 
 
 
+  if(reinicializarSistema.available()){  // Função OK
+    int dadosLidos = reinicializarSistema.getData();
+    Serial.println("Reiniciando o sistema...");
+    Serial.println("Dados Recebidos do Display: " + String(dadosLidos));
+    delay(1000);
+    ESP.restart();
+  }
+
+    // Função para controlar a ativação automatica do motor. 
+  if (LigarMotor.available()){ // Recebendo e interceptando o valor para ligar e desligar. 
+    int value = LigarMotor.getData();
+    if(value == 1){
+      Serial.println("Vamos ligar a leitura automatica!");
+      char Texto[10] = "LIGADO";
+      String textoString = String(Texto); // Convertendo o Char para String para gravar no Display
+      statusMotorDisplay.write(textoString);  
+    // aqui fazer a chamada da função para ativar o ciclo de leituras. 
+   // leituraAutomatica(); // Inicia o processo de leitura automatica dos ovos
+    }
+    else 
+      if (value == 0){
+        Serial.println("Vamos Desligar o Motor!");
+        char Texto[10] = "DESLIGADO";
+        String textoString = String(Texto); // Convertendo o Char para String para gravar no Display
+        statusMotorDisplay.write(textoString);      
+     //   digitalWrite(DIRECTION, LOW); // Comando que para o motor de passo. 
+
+
+      }
+  }
+
+
+  // Função para limpar o grafico de pressao, temperatura e umidade.
+
+  if (limparGraficoPressao.available()){
+    int value = limparGraficoPressao.getData();
+    Serial.println("Dados recebidos para limpar o grafico de Pressao");
+    if(value == 1){
+      Lcm.clearTrendCurve1();
+      Serial.println("Display Limpo");
+      delay(100);
+      value = 0;    
+    } else{
+      Lcm.writeTrendCurve1(pressaoBMP);
+    }
+  }
+
+  if (limparGraficoTemperatura.available()){
+    int value = limparGraficoTemperatura.getData();
+    Serial.println("Dados recebidos para limpar o grafico de temperatura");
+    if(value == 1){
+      Lcm.clearTrendCurve0();
+      Serial.println("Display Limpo");
+      delay(100);
+      value = 0;    
+    } else{
+      Lcm.writeTrendCurve0(temperaturaMLX);
+    }
+  }
+
+  if (limparGraficoUmidade.available()){
+    int value = limparGraficoUmidade.getData();
+    Serial.println("Dados recebidos para limpar o grafico de Umidade");
+    if(value == 1){
+      Lcm.clearTrendCurve2();
+      Serial.println("Display Limpo");
+      delay(100);
+      value = 0;    
+    } else{
+      Lcm.writeTrendCurve2(umidadeAHT);
+    }
+  }
+
+  // Gerando os graficos a cada 1 segundo
+  if (tempoAtual - tempoAnterior >= intervaloGraficos){
+    tempoAnterior = tempoAtual; // atualizando o tempo anterior
+    Lcm.writeTrendCurve0(temperaturaMLX);
+    Lcm.writeTrendCurve2(umidadeAHT);
+    Lcm.writeTrendCurve1(pressaoBMP);   
+  }
+
+  
+
+
+  // Impressao no display dos dados do lote
+  if (loteOvosDisplay.available()){
+    int value = loteOvosDisplay.getData();
+    if (value == 14){
+  
+  //   char loteOvos[20] = lote_id;
+      String textoLote = String(loteOvos); // Convertendo o Char para String para gravar no Display e escrevendo no Display
+  //   lote.write(textoLote);
+      Serial.println(textoLote);   
+
+  //   char dataInicialLote[20] = dataInicialLote;
+      String textoLoteInicial = String(dataInicialLote);
+      dataInicialLoteDisplay.write(textoLoteInicial);
+      Serial.println(textoLoteInicial);
+
+    //  char dataFinalLote[20] = dataFinalLote;
+      String textoLoteFinal = String(dataFinalLote);
+      dataFinalLoteDisplay.write(textoLoteFinal);
+      Serial.println(textoLoteFinal);
+    }
+
+
+
+
+
+
+}
 
 
 }
