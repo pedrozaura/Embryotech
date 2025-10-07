@@ -107,7 +107,7 @@ struct SensorData {
 EstadoSistema estadoAtual = PARADO;
 
 // ===== CONFIGURAÇÕES DO SISTEMA =====
-#define VELOCIDADE_MOTOR 1500        // Microsegundos entre pulsos (ajustar conforme necessário)
+#define VELOCIDADE_MOTOR 1000        // Microsegundos entre pulsos (ajustar conforme necessário)
 #define PASSOS_POR_ANDAR 2000      // Número de passos entre andares (ajustar conforme necessário)
 #define TEMPO_DEBOUNCE 50          // Tempo de debounce em ms
 #define MAX_ANDARES 5              // Número máximo de andares
@@ -640,71 +640,6 @@ void debug_memoria() {
   Serial.println(" bytes");
 }
 // ===== FUNÇÕES DE INTERRUPÇÃO =====
-void IRAM_ATTR isrFimCursoDirSuperior() {
-    unsigned long tempoAtual = millis();
-    if (tempoAtual - ultimoTempoInterrupcao[0] > TEMPO_DEBOUNCE) {
-        fimCursoDirSuperiorAtivado = true;
-        ultimoTempoInterrupcao[0] = tempoAtual;
-    }
-}
-
-void IRAM_ATTR isrFimCursoDirInferior() {
-    unsigned long tempoAtual = millis();
-    if (tempoAtual - ultimoTempoInterrupcao[1] > TEMPO_DEBOUNCE) {
-        fimCursoDirInferiorAtivado = true;
-        ultimoTempoInterrupcao[1] = tempoAtual;
-    }
-}
-
-void IRAM_ATTR isrFimCursoEsqSuperior() {
-    unsigned long tempoAtual = millis();
-    if (tempoAtual - ultimoTempoInterrupcao[2] > TEMPO_DEBOUNCE) {
-        fimCursoEsqSuperiorAtivado = true;
-        ultimoTempoInterrupcao[2] = tempoAtual;
-    }
-}
-
-void IRAM_ATTR isrFimCursoEsqInferior() {
-    unsigned long tempoAtual = millis();
-    if (tempoAtual - ultimoTempoInterrupcao[3] > TEMPO_DEBOUNCE) {
-        fimCursoEsqInferiorAtivado = true;
-        ultimoTempoInterrupcao[3] = tempoAtual;
-    }
-}
-
-void IRAM_ATTR isrFimCursoMeioDireita() {
-    unsigned long tempoAtual = millis();
-    if (tempoAtual - ultimoTempoInterrupcao[4] > TEMPO_DEBOUNCE) {
-        fimCursoMeioDireitaAtivado = true;
-        contadorPulsosDireita++;
-        ultimoTempoInterrupcao[4] = tempoAtual;
-    }
-}
-
-void IRAM_ATTR isrFimCursoMeioEsquerda() {
-    unsigned long tempoAtual = millis();
-    if (tempoAtual - ultimoTempoInterrupcao[5] > TEMPO_DEBOUNCE) {
-        fimCursoMeioEsquerdaAtivado = true;
-        contadorPulsosEsquerda++;
-        ultimoTempoInterrupcao[5] = tempoAtual;
-    }
-}
-
-void IRAM_ATTR isrFimCursoCentro1() {
-    unsigned long tempoAtual = millis();
-    if (tempoAtual - ultimoTempoInterrupcao[6] > TEMPO_DEBOUNCE) {
-        fimCursoCentro1Ativado = true;
-        ultimoTempoInterrupcao[6] = tempoAtual;
-    }
-}
-
-void IRAM_ATTR isrFimCursoCentro2() {
-    unsigned long tempoAtual = millis();
-    if (tempoAtual - ultimoTempoInterrupcao[7] > TEMPO_DEBOUNCE) {
-        fimCursoCentro2Ativado = true;
-        ultimoTempoInterrupcao[7] = tempoAtual;
-    }
-}
 
 
 void configurarMotores() {
@@ -743,15 +678,7 @@ void configurarFinsDeCorso() {
   pinMode(FIM_CURSO_CENTRO_1, INPUT);
   pinMode(FIM_CURSO_CENTRO_2, INPUT);
 
-  // Configurar interrupções para os fins de curso
-    attachInterrupt(digitalPinToInterrupt(FIM_CURSO_DIR_SUPERIOR), isrFimCursoDirSuperior, FALLING);
-    attachInterrupt(digitalPinToInterrupt(FIM_CURSO_DIR_INFERIOR), isrFimCursoDirInferior, FALLING);
-    attachInterrupt(digitalPinToInterrupt(FIM_CURSO_ESQ_SUPERIOR), isrFimCursoEsqSuperior, FALLING);
-    attachInterrupt(digitalPinToInterrupt(FIM_CURSO_ESQ_INFERIOR), isrFimCursoEsqInferior, FALLING);
-    attachInterrupt(digitalPinToInterrupt(FIM_CURSO_MECANISMO_MEIO_DIREITA), isrFimCursoMeioDireita, FALLING);
-    attachInterrupt(digitalPinToInterrupt(FIM_CURSO_MECANISMO_MEIO_ESQUERDA), isrFimCursoMeioEsquerda, FALLING);
-    attachInterrupt(digitalPinToInterrupt(FIM_CURSO_CENTRO_1), isrFimCursoCentro1, FALLING);
-    attachInterrupt(digitalPinToInterrupt(FIM_CURSO_CENTRO_2), isrFimCursoCentro2, FALLING);
+  pinMode(pinoSensorParada, INPUT);
   
   Serial.println("Fins de curso configurados");
 
@@ -962,93 +889,90 @@ void ajustarEquilibrio() {
 
 void executarHoming() {
     Serial.println("=================================");
-    Serial.println("INICIANDO HOMING");
+    Serial.println("INICIANDO HOMING SEGURO");
     Serial.println("=================================");
-    
-    // Resetar flags das interrupções
-    fimCursoDirInferiorAtivado = false;
-    fimCursoEsqInferiorAtivado = false;
-    
-    // Habilitar motores das torres
+
+    // Resetar status dos fins de curso
+    bool homingDirOK = false;
+    bool homingEsqOK = false;
+
+    // Habilitar motores
     habilitarMotor(MOTOR_DIR_ENABLE);
     habilitarMotor(MOTOR_ESQ_ENABLE);
-    delay(100); // Aguardar estabilização
-    
-    // Configurar direção para DESCER (LOW = descer)
+    delay(100); // estabilização
+
+    // Configurar direção para DESCER
     digitalWrite(MOTOR_DIR_DIR, LOW);
     digitalWrite(MOTOR_ESQ_DIR, LOW);
-    
-    // Variáveis de controle
+
     unsigned long tempoInicio = millis();
     const unsigned long TIMEOUT = 30000; // 30 segundos máximo
-    bool homingCompleto = false;
-    
-    Serial.println("Descendo motores até fins de curso...");
-    
-    // Loop principal - mover até AMBOS fins de curso serem acionados
-    while (!homingCompleto) {
-        
-        // Verificar timeout de segurança
+
+    Serial.println("Descendo motores até fins de curso individuais...");
+
+    while (!(homingDirOK && homingEsqOK)) {
+        // Timeout de segurança
         if (millis() - tempoInicio > TIMEOUT) {
             Serial.println("ERRO: Timeout no homing!");
             break;
         }
-        
-        // Verificar se AMBOS fins de curso foram acionados
-        if (fimCursoDirInferiorAtivado && fimCursoEsqInferiorAtivado) {
-            homingCompleto = true;
-            Serial.println("Ambos fins de curso acionados!");
-            break;
+
+        // Leitura direta dos pinos de fim de curso
+        bool fimDirAtivo = (digitalRead(FIM_CURSO_DIR_INFERIOR) == LOW);
+        bool fimEsqAtivo = (digitalRead(FIM_CURSO_ESQ_INFERIOR) == LOW);
+
+        // Atualizar flags de cada torre
+        if (fimDirAtivo && !homingDirOK) {
+            homingDirOK = true;
+            Serial.println("→ Fim de curso DIREITO atingido!");
         }
-        
-        // Movimento sincronizado - SEMPRE mover ambos juntos
-        digitalWrite(MOTOR_DIR_STEP, HIGH);
-        digitalWrite(MOTOR_ESQ_STEP, HIGH);
+        if (fimEsqAtivo && !homingEsqOK) {
+            homingEsqOK = true;
+            Serial.println("→ Fim de curso ESQUERDO atingido!");
+        }
+
+        // Movimento seguro: só passo se o fim de curso NÃO estiver acionado
+        if (!homingDirOK && !fimDirAtivo) {
+            digitalWrite(MOTOR_DIR_STEP, HIGH);
+        }
+        if (!homingEsqOK && !fimEsqAtivo) {
+            digitalWrite(MOTOR_ESQ_STEP, HIGH);
+        }
+
         delayMicroseconds(VELOCIDADE_MOTOR);
-        
-        digitalWrite(MOTOR_DIR_STEP, LOW);
-        digitalWrite(MOTOR_ESQ_STEP, LOW);
+
+        if (!homingDirOK && !fimDirAtivo) digitalWrite(MOTOR_DIR_STEP, LOW);
+        if (!homingEsqOK && !fimEsqAtivo) digitalWrite(MOTOR_ESQ_STEP, LOW);
+
         delayMicroseconds(VELOCIDADE_MOTOR);
     }
-    
-    // Desabilitar motores
+
+    // Desabilitar motores após conclusão
     desabilitarMotor(MOTOR_DIR_ENABLE);
     desabilitarMotor(MOTOR_ESQ_ENABLE);
-    
-    // Verificar resultado e configurar sistema
-    if (homingCompleto) {
-        // Reset dos contadores
+
+    // === Resultado final ===
+    if (homingDirOK && homingEsqOK) {
         andarAtual = 0;
-        contadorPulsosDireita = 0;
-        contadorPulsosEsquerda = 0;
-        contadorPassosDireita = 0;
-        contadorPassosEsquerda = 0;
-        
+        contadorPulsosDireita = contadorPulsosEsquerda = 0;
+        contadorPassosDireita = contadorPassosEsquerda = 0;
+
         Serial.println("=================================");
-        Serial.println("✓ HOMING CONCLUÍDO COM SUCESSO!");
+        Serial.println("✓ HOMING SEGURO CONCLUÍDO COM SUCESSO!");
         Serial.println("✓ Sistema no PRIMEIRO ANDAR");
         Serial.println("=================================");
-        
-        // Opcional: Enviar status ao display
-        String msgSucesso = "HOMING OK - ANDAR 0";
-        StatusCalibracao.write(msgSucesso);
-    } 
-    else {
+    } else {
         Serial.println("=================================");
         Serial.println("✗ FALHA NO HOMING!");
-        Serial.print("Fim Curso Dir: ");
-        Serial.println(fimCursoDirInferiorAtivado ? "OK" : "FALHA");
-        Serial.print("Fim Curso Esq: ");
-        Serial.println(fimCursoEsqInferiorAtivado ? "OK" : "FALHA");
+        Serial.print("Fim Curso Dir: "); Serial.println(homingDirOK ? "OK" : "FALHA");
+        Serial.print("Fim Curso Esq: "); Serial.println(homingEsqOK ? "OK" : "FALHA");
         Serial.println("=================================");
-        
-        // Opcional: Enviar erro ao display
-        String msgErro = "ERRO HOMING";
-        StatusCalibracao.write(msgErro);
     }
-    
-    delay(1000); // Aguardar estabilização final
+
+    delay(1000); // estabilização final
 }
+
+
 
 // ========== FUNÇÃO AUXILIAR DE VERIFICAÇÃO ==========
 // Pode ser chamada a qualquer momento para verificar alinhamento
@@ -1104,35 +1028,6 @@ bool verificarNivelamento() {
 // ========== FUNÇÃO DE TESTE DO HOMING ==========
 // Use esta função para testar o homing manualmente
 
-void testarHoming() {
-    Serial.println("\n=== TESTE DE HOMING ===");
-    
-    // Status antes
-    Serial.println("Status ANTES do homing:");
-    Serial.print("  Andar atual: ");
-    Serial.println(andarAtual);
-    Serial.print("  Fim curso Dir Inf: ");
-    Serial.println(digitalRead(FIM_CURSO_DIR_INFERIOR) == LOW ? "Acionado" : "Livre");
-    Serial.print("  Fim curso Esq Inf: ");
-    Serial.println(digitalRead(FIM_CURSO_ESQ_INFERIOR) == LOW ? "Acionado" : "Livre");
-    
-    // Executar homing
-    executarHoming();
-    
-    // Status depois
-    Serial.println("\nStatus DEPOIS do homing:");
-    Serial.print("  Andar atual: ");
-    Serial.println(andarAtual);
-    Serial.print("  Contador Dir: ");
-    Serial.println(contadorPulsosDireita);
-    Serial.print("  Contador Esq: ");
-    Serial.println(contadorPulsosEsquerda);
-    
-    // Verificar nivelamento
-    verificarNivelamento();
-    
-    Serial.println("=== FIM DO TESTE ===\n");
-}
 
 
 // ========== LOOP PRINCIPAL ==========
