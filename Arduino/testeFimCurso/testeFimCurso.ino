@@ -15,6 +15,8 @@
 #define FIM_CURSO_CENTRO_1 18   // Amarelo
 #define FIM_CURSO_CENTRO_2 19   // Branco
 
+#define PIN_CENTRO_OVO 23
+
 
 void configurarFinsDeCorso() {
   // Torre Direita
@@ -32,6 +34,8 @@ void configurarFinsDeCorso() {
   // Motor Central
   pinMode(FIM_CURSO_CENTRO_1, INPUT);
   pinMode(FIM_CURSO_CENTRO_2, INPUT);
+
+  pinMode(PIN_CENTRO_OVO, INPUT);
   
   Serial.println("Fins de curso configurados");
 }
@@ -49,23 +53,23 @@ void setup() {
 
 void loop(){
 
-  // Verificar estado dos fins de curso
-  if (digitalRead(FIM_CURSO_DIR_SUPERIOR) == LOW) {
+  //Verificar estado dos fins de curso
+  if (digitalRead(FIM_CURSO_DIR_SUPERIOR) == LOW) {  // OK
     Serial.println("Fim de curso direito superior acionado");
   }
-  if (digitalRead(FIM_CURSO_DIR_INFERIOR) == LOW) {
+  if (digitalRead(FIM_CURSO_DIR_INFERIOR) == LOW) {  // OK
     Serial.println("Fim de curso direito inferior acionado");
   }
-  if (digitalRead(FIM_CURSO_ESQ_SUPERIOR) == LOW) {
+  if (digitalRead(FIM_CURSO_ESQ_SUPERIOR) == LOW) {  // OK
     Serial.println("Fim de curso esquerdo superior acionado");
   }
-  if (digitalRead(FIM_CURSO_ESQ_INFERIOR) == LOW) {
+  if (digitalRead(FIM_CURSO_ESQ_INFERIOR) == LOW) {  //ok
     Serial.println("Fim de curso esquerdo inferior acionado");
   }
-  if (digitalRead(FIM_CURSO_MECANISMO_MEIO_DIREITA) == LOW) {
+  if (digitalRead(FIM_CURSO_MECANISMO_MEIO_DIREITA) == LOW) {  //ok
     Serial.println("Fim de curso mecanismo meio direita acionado");
   }
-  if (digitalRead(FIM_CURSO_MECANISMO_MEIO_ESQUERDA) == LOW) {
+  if (digitalRead(FIM_CURSO_MECANISMO_MEIO_ESQUERDA) == LOW) { //ok
     Serial.println("Fim de curso mecanismo meio esquerda acionado");
   }
   if (digitalRead(FIM_CURSO_CENTRO_1) == LOW) {
@@ -73,6 +77,10 @@ void loop(){
   }
   if (digitalRead(FIM_CURSO_CENTRO_2) == LOW) {
     Serial.println("Fim de curso centro 2 acionado");
+  }
+
+  if (digitalRead(PIN_CENTRO_OVO) == LOW){
+    Serial.println("Identificado OVO");
   }
 
   delay(50); // Atraso para evitar leituras excessivas
