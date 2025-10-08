@@ -108,7 +108,7 @@ struct SensorData {
 EstadoSistema estadoAtual = PARADO;
 
 // ===== CONFIGURAÇÕES DO SISTEMA =====
-#define VELOCIDADE_MOTOR 1000        // Microsegundos entre pulsos (ajustar conforme necessário)
+#define VELOCIDADE_MOTOR 550        // Microsegundos entre pulsos (ajustar conforme necessário) minimo aceitavel 500
 #define PASSOS_POR_ANDAR 2000      // Número de passos entre andares (ajustar conforme necessário)
 #define TEMPO_DEBOUNCE 50          // Tempo de debounce em ms
 #define MAX_ANDARES 5              // Número máximo de andares
@@ -1034,22 +1034,94 @@ bool verificarNivelamento() {
 // ========== FUNÇÃO DE TESTE DO HOMING ==========
 // Use esta função para testar o homing manualmente
 
-// Função auxiliar: debounce simples para leitura de sensores
-// Função auxiliar: debounce simples para leitura de sensores
-bool sensorAtivoDebounce(int pino, int tempoDebounce = 20) {
+// FUNÇÃO AUXILIAR MELHORADA (substitua a existente)
+bool sensorAtivoDebounce(int pino, int tempoDebounce = 10) {
     if (digitalRead(pino) == LOW) {
-        delay(tempoDebounce); // espera 20ms
-        if (digitalRead(pino) == LOW) return true;
+        delay(tempoDebounce);
+        if (digitalRead(pino) == LOW) {
+            return true;
+        }
     }
     return false;
 }
 
-void subirAndarPorAndar() {
+bool andarDetectado = false;       // Flag global
+unsigned long tempoAndarDetectado = 0; // Armazena o tempo da detecção
+
+// void subirAndarPorAndar() {
+//     Serial.println("=================================");
+//     Serial.println("INICIANDO SUBIDA POR ANDAR");
+//     Serial.println("=================================");
+
+//     // Habilitar motores
+//     habilitarMotor(MOTOR_DIR_ENABLE);
+//     habilitarMotor(MOTOR_ESQ_ENABLE);
+//     delay(100); // estabilização
+
+//     // Configurar direção para SUBIR
+//     digitalWrite(MOTOR_DIR_DIR, HIGH);
+//     digitalWrite(MOTOR_ESQ_DIR, HIGH);
+
+//     unsigned long tempoInicio = millis();
+//     const unsigned long TIMEOUT = 60000; // Timeout máximo
+//     bool topoAlcancado = false;
+
+//     while (!topoAlcancado) {
+//         unsigned long agora = millis();
+
+//         // Timeout de segurança
+//         if (agora - tempoInicio > TIMEOUT) {
+//             Serial.println("ERRO: Timeout na subida!");
+//             break;
+//         }
+
+//         // Leitura dos sensores superiores
+//         bool fimSupDirAtivo = (digitalRead(FIM_CURSO_DIR_SUPERIOR) == LOW);
+//         bool fimSupEsqAtivo = (digitalRead(FIM_CURSO_ESQ_SUPERIOR) == LOW);
+
+//         // Se topo atingido, parar motores, aguardar e retornar via homing
+//         if (fimSupDirAtivo || fimSupEsqAtivo) {
+//             Serial.println("✓ Fim de curso superior atingido!");
+//             desabilitarMotor(MOTOR_DIR_ENABLE);
+//             desabilitarMotor(MOTOR_ESQ_ENABLE);
+//             delay(10000); // espera 10 segundos antes do homing
+//             executarHoming(); // retorna ao andar 0
+//             topoAlcancado = true;
+//             break;
+//         }
+
+//         // Leitura dos sensores intermediários com debounce
+//         bool meioDirAtivo = sensorAtivoDebounce(FIM_CURSO_MECANISMO_MEIO_DIREITA);
+//         bool meioEsqAtivo = sensorAtivoDebounce(FIM_CURSO_MECANISMO_MEIO_ESQUERDA);
+
+//         // Detecta novo andar
+//         if ((meioDirAtivo && meioEsqAtivo) && !andarDetectado) {
+//             Serial.println("→ Novo andar detectado!");
+//             andarDetectado = true;
+//             tempoAndarDetectado = agora; // marca início da pausa
+//         }
+
+
+
+//         // Movimento seguro (sem delay bloqueante)
+//         if (!fimSupDirAtivo && !fimSupEsqAtivo) {
+//             digitalWrite(MOTOR_DIR_STEP, HIGH);
+//             digitalWrite(MOTOR_ESQ_STEP, HIGH);
+//             delayMicroseconds(VELOCIDADE_MOTOR);
+//             digitalWrite(MOTOR_DIR_STEP, LOW);
+//             digitalWrite(MOTOR_ESQ_STEP, LOW);
+//             delayMicroseconds(VELOCIDADE_MOTOR);
+//         }
+//     }
+// }
+
+// essa somente sobe e desce.
+void subirAndarPorAndar_old() {
     Serial.println("=================================");
-    Serial.println("INICIANDO SUBIDA POR ANDAR");
+    Serial.println("INICIANDO SUBIDA ATÉ O TOPO");
     Serial.println("=================================");
 
-    // Habilitar motores
+    // Habilitar motores (mantém torque ativo)
     habilitarMotor(MOTOR_DIR_ENABLE);
     habilitarMotor(MOTOR_ESQ_ENABLE);
     delay(100); // estabilização
@@ -1059,59 +1131,180 @@ void subirAndarPorAndar() {
     digitalWrite(MOTOR_ESQ_DIR, HIGH);
 
     unsigned long tempoInicio = millis();
-    const unsigned long TIMEOUT = 60000; // Timeout máximo
+    const unsigned long TIMEOUT = 60000; // 60s de segurança
     bool topoAlcancado = false;
 
     while (!topoAlcancado) {
         // Timeout de segurança
         if (millis() - tempoInicio > TIMEOUT) {
-            Serial.println("ERRO: Timeout na subida!");
+            Serial.println("⚠️ ERRO: Timeout na subida!");
             break;
         }
 
-        // Leitura dos sensores superiores
+        // Leitura dos sensores de topo
         bool fimSupDirAtivo = (digitalRead(FIM_CURSO_DIR_SUPERIOR) == LOW);
         bool fimSupEsqAtivo = (digitalRead(FIM_CURSO_ESQ_SUPERIOR) == LOW);
 
-        // Se topo atingido, parar motores, aguardar e retornar via homing
+        // Se topo atingido → parar movimento e aguardar 10s
         if (fimSupDirAtivo || fimSupEsqAtivo) {
-            Serial.println("✓ Fim de curso superior atingido!");
+            Serial.println("✓ TOPO ALCANÇADO!");
+            topoAlcancado = true;
+
+            // Parar motores, mas manter torque
+            Serial.println("Aguardando 10 segundos no topo...");
+            unsigned long tempoPausa = millis();
+            while (millis() - tempoPausa < 10000) {
+                // Mantém motores habilitados e travados
+                delay(1);
+            }
+
+            Serial.println("↓ Iniciando descida (Homing)...");
+            executarHoming(); // volta ao andar 0
+            break;
+        }
+
+        // Movimento normal (subindo)
+        digitalWrite(MOTOR_DIR_STEP, HIGH);
+        digitalWrite(MOTOR_ESQ_STEP, HIGH);
+        delayMicroseconds(VELOCIDADE_MOTOR);
+        digitalWrite(MOTOR_DIR_STEP, LOW);
+        digitalWrite(MOTOR_ESQ_STEP, LOW);
+        delayMicroseconds(VELOCIDADE_MOTOR);
+    }
+
+    Serial.println("=================================");
+    Serial.println("CICLO FINALIZADO");
+    Serial.println("=================================");
+}
+
+
+void subirAndarPorAndar() {
+    Serial.println("=================================");
+    Serial.println("INICIANDO SUBIDA POR ANDAR");
+    Serial.println("=================================");
+
+    // Habilitar motores - eles ficarão habilitados durante TODO o processo
+    habilitarMotor(MOTOR_DIR_ENABLE);
+    habilitarMotor(MOTOR_ESQ_ENABLE);
+    delay(100); // estabilização inicial
+
+    // Configurar direção para SUBIR (fixo durante toda subida)
+    digitalWrite(MOTOR_DIR_DIR, HIGH);
+    digitalWrite(MOTOR_ESQ_DIR, HIGH);
+
+    unsigned long tempoInicio = millis();
+    const unsigned long TIMEOUT = 120000; // 2 minutos de timeout
+    bool topoAlcancado = false;
+    
+    // Variáveis de controle de detecção de andar
+    bool andarDetectado = false;
+    bool ultimaLeituraSensores = false;
+    int passosAposDeteccao = 0;
+    const int PASSOS_PARA_LIBERAR = 300; // Ajuste conforme necessário
+    int contadorAndares = 0;
+    
+    // Variável para controlar pausa
+    unsigned long tempoInicioParada = 0;
+    bool emParada = false;
+    const unsigned long TEMPO_PARADA = 2000; // 2 segundos
+
+    while (!topoAlcancado) {
+        // Timeout de segurança
+        if (millis() - tempoInicio > TIMEOUT) {
+            Serial.println("ERRO: Timeout na subida!");
             desabilitarMotor(MOTOR_DIR_ENABLE);
             desabilitarMotor(MOTOR_ESQ_ENABLE);
-            delay(10000); // espera 10 segundos antes do homing
-            executarHoming(); // retorna ao andar 0
+            break;
+        }
+
+        // === LEITURA DOS SENSORES ===
+        bool fimSupDirAtivo = (digitalRead(FIM_CURSO_DIR_SUPERIOR) == LOW);
+        bool fimSupEsqAtivo = (digitalRead(FIM_CURSO_ESQ_SUPERIOR) == LOW);
+        bool meioDirAtivo = (digitalRead(FIM_CURSO_MECANISMO_MEIO_DIREITA) == LOW);
+        bool meioEsqAtivo = (digitalRead(FIM_CURSO_MECANISMO_MEIO_ESQUERDA) == LOW);
+        bool sensoresAtivos = (meioDirAtivo && meioEsqAtivo);
+
+        // === VERIFICAÇÃO TOPO ===
+        if (fimSupDirAtivo || fimSupEsqAtivo) {
+            Serial.println("✓ Fim de curso superior atingido!");
+            Serial.print("Total de andares percorridos: ");
+            Serial.println(contadorAndares);
+            Serial.println("=================================");
+            
+            // MOTORES PERMANECEM HABILITADOS (travados) durante os 10 segundos
+            Serial.println("Aguardando 10 segundos antes de retornar...");
+            delay(10000);
+            
+            Serial.println("Iniciando retorno ao andar 0...");
+            executarHoming();
+            
             topoAlcancado = true;
             break;
         }
 
-        // Leitura dos sensores intermediários com debounce
-        bool meioDirAtivo = sensorAtivoDebounce(FIM_CURSO_MECANISMO_MEIO_DIREITA);
-        bool meioEsqAtivo = sensorAtivoDebounce(FIM_CURSO_MECANISMO_MEIO_ESQUERDA);
-
-        // Detecta novo andar
-        if (meioDirAtivo && meioEsqAtivo) {
+        // === DETECÇÃO DE NOVO ANDAR (BORDA DE SUBIDA) ===
+        if (sensoresAtivos && !ultimaLeituraSensores && !andarDetectado && !emParada) {
+            // NOVO ANDAR DETECTADO!
+            contadorAndares++;
+            andarDetectado = true;
+            emParada = true;
+            tempoInicioParada = millis();
+            passosAposDeteccao = 0;
+            
             Serial.println("→ Novo andar detectado!");
-            delay(2000); // aguarda 2 segundos antes de continuar
+            Serial.print("   Andar número: ");
+            Serial.println(contadorAndares);
+            Serial.println("   Motores TRAVADOS por 2 segundos (sem movimento)");
+            
+            // IMPORTANTE: Motores continuam HABILITADOS (travados)
+            // Não enviamos pulsos STEP = motor fica parado com torque máximo
+        }
 
-            // Espera até sair da zona do sensor para não duplicar mensagem
-            while (sensorAtivoDebounce(FIM_CURSO_MECANISMO_MEIO_DIREITA) &&
-                   sensorAtivoDebounce(FIM_CURSO_MECANISMO_MEIO_ESQUERDA)) {
-                delay(5);
+        // === GERENCIAMENTO DA PARADA ===
+        if (emParada) {
+            if (millis() - tempoInicioParada >= TEMPO_PARADA) {
+                // Fim da parada
+                emParada = false;
+                Serial.println("   Parada concluída. Retomando subida...");
+            }
+            // Durante a parada, não envia pulsos STEP (motor travado sem movimento)
+            ultimaLeituraSensores = sensoresAtivos;
+            continue; // Pula o envio de pulsos STEP
+        }
+
+        // === CONTAGEM DE PASSOS APÓS DETECÇÃO ===
+        if (andarDetectado && !emParada) {
+            passosAposDeteccao++;
+            
+            if (passosAposDeteccao >= PASSOS_PARA_LIBERAR) {
+                andarDetectado = false;
+                passosAposDeteccao = 0;
+                Serial.println("   Zona do sensor liberada. Pronto para próximo andar.");
             }
         }
 
-        // Movimento seguro: só passo se **nenhum fim de curso superior** estiver ativo
-        // e não estiver em um sensor intermediário
-        if (!fimSupDirAtivo && !fimSupEsqAtivo && !(meioDirAtivo && meioEsqAtivo)) {
+        // === ATUALIZAR ESTADO ANTERIOR ===
+        ultimaLeituraSensores = sensoresAtivos;
+
+        // === ENVIO DE PULSOS STEP (MOVIMENTO) ===
+        // Só envia pulsos se NÃO estiver em parada e NÃO estiver no topo
+        if (!emParada && !fimSupDirAtivo && !fimSupEsqAtivo) {
+            // Passo sincronizado em ambos os motores
             digitalWrite(MOTOR_DIR_STEP, HIGH);
             digitalWrite(MOTOR_ESQ_STEP, HIGH);
             delayMicroseconds(VELOCIDADE_MOTOR);
+            
             digitalWrite(MOTOR_DIR_STEP, LOW);
             digitalWrite(MOTOR_ESQ_STEP, LOW);
             delayMicroseconds(VELOCIDADE_MOTOR);
         }
     }
+    
+    Serial.println("=================================");
+    Serial.println("SUBIDA FINALIZADA");
+    Serial.println("=================================");
 }
+
 
 
 
@@ -1211,7 +1404,7 @@ void loop() {
   unsigned long tempoAtual = millis();
   static unsigned long ultimoCheck = 0; // Para validação se o sistema esta conectado ou nao ao Servidor API
   
-subirAndarPorAndar();
+  subirAndarPorAndar();
 
   // Verifica se o tempo decorrido é maior ou igual ao intervalo
   if (tempoAtual - tempoAnterior >= INTERVALOSUBIDA) {
