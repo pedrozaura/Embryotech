@@ -950,9 +950,13 @@ void executarHoming() {
         delayMicroseconds(VELOCIDADE_MOTOR);
     }
 
-    // Desabilitar motores após conclusão
-    desabilitarMotor(MOTOR_DIR_ENABLE);
-    desabilitarMotor(MOTOR_ESQ_ENABLE);
+    // // Desabilitar motores após conclusão
+    // desabilitarMotor(MOTOR_DIR_ENABLE);
+    // desabilitarMotor(MOTOR_ESQ_ENABLE);
+
+    habilitarMotor(MOTOR_DIR_ENABLE);
+    habilitarMotor(MOTOR_ESQ_ENABLE);
+    delay(100); // estabilização
 
     // === Resultado final ===
     if (homingDirOK && homingEsqOK) {
