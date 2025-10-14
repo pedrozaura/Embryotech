@@ -201,50 +201,92 @@ WebServer server(80);
 
 // ========== FUNÇÕES DE CONFIGURAÇÃO ==========
 // ==================== COLETA DE DADOS DOS SENSORES ====================
+// SensorData coletar_dados_sensores() {
+//   SensorData dados;
+//   dados.valida = false;
+  
+//   sensors_event_t humidity, temp;
+//   aht.getEvent(&humidity, &temp);  // Read temperature and humidity
+
+//   Serial.println("Coletando dados dos sensores...");
+  
+//   // Ler DHT22 (temperatura e umidade)
+//   dados.temperatura = mlx.readObjectTempC();  //Carrega temperatura do Ovo, sensor MLX90614
+//   delay(20);
+//   dados.umidade = humidity.relative_humidity; //Carrega a umidade do AHT10. umidade ambiente
+//   delay(20);
+//   // Ler BMP280 (pressão)
+//   dados.pressao = bmp.readPressure() / 100.0F; // Converter para hPa carrega os dados de pressao ambiente. 
+//   delay(20);
+//   // Verificar se as leituras são válidas
+//   if (isnan(dados.temperatura) || isnan(dados.umidade)) {
+//     Serial.println("Erro: Falha na leitura do sensor Temperatura/Umidade");
+//     return dados;
+//   }
+  
+//   if (isnan(dados.pressao) || dados.pressao == 0) {
+//     Serial.println("Erro: Falha na leitura do sensor BMP280");
+//     // Continuar mesmo sem pressão válida
+//     dados.pressao = 0;
+//   }
+
+//   // Sempre que os dados forem coletados ocorre a impressao dos valores no display
+//   imprimePressao.write(dados.pressao);
+//   imprimeTemperatura.write(dados.temperatura);
+//   imprimeUmidade.write(dados.umidade);
+  
+//   // Mostrar dados coletados
+//   Serial.println("=== DADOS COLETADOS ===");
+//   Serial.println("Temperatura: " + String(dados.temperatura, 2) + "°C");
+//   Serial.println("Umidade: " + String(dados.umidade, 2) + "%");
+//   Serial.println("Pressão: " + String(dados.pressao, 2) + " hPa");
+//   Serial.println("=====================");
+  
+//   dados.valida = true;
+//   return dados;
+// }
+
 SensorData coletar_dados_sensores() {
   SensorData dados;
   dados.valida = false;
-  
+
   sensors_event_t humidity, temp;
-  aht.getEvent(&humidity, &temp);  // Read temperature and humidity
+  aht.getEvent(&humidity, &temp);
 
   Serial.println("Coletando dados dos sensores...");
-  
-  // Ler DHT22 (temperatura e umidade)
-  dados.temperatura = mlx.readObjectTempC();  //Carrega temperatura do Ovo, sensor MLX90614
+
+  dados.temperatura = mlx.readObjectTempC();
   delay(20);
-  dados.umidade = humidity.relative_humidity; //Carrega a umidade do AHT10. umidade ambiente
+  dados.umidade = humidity.relative_humidity;
   delay(20);
-  // Ler BMP280 (pressão)
-  dados.pressao = bmp.readPressure() / 100.0F; // Converter para hPa carrega os dados de pressao ambiente. 
+  dados.pressao = bmp.readPressure() / 100.0F;
   delay(20);
-  // Verificar se as leituras são válidas
+
   if (isnan(dados.temperatura) || isnan(dados.umidade)) {
     Serial.println("Erro: Falha na leitura do sensor Temperatura/Umidade");
     return dados;
   }
-  
-  if (isnan(dados.pressao) || dados.pressao == 0) {
+
+  if (isnan(dados.pressao) || dados.pressao <= 0) {
     Serial.println("Erro: Falha na leitura do sensor BMP280");
-    // Continuar mesmo sem pressão válida
     dados.pressao = 0;
   }
 
-  // Sempre que os dados forem coletados ocorre a impressao dos valores no display
+  // Atualizar display (seguro pois é single-thread)
   imprimePressao.write(dados.pressao);
   imprimeTemperatura.write(dados.temperatura);
   imprimeUmidade.write(dados.umidade);
-  
-  // Mostrar dados coletados
-  Serial.println("=== DADOS COLETADOS ===");
-  Serial.println("Temperatura: " + String(dados.temperatura, 2) + "°C");
-  Serial.println("Umidade: " + String(dados.umidade, 2) + "%");
-  Serial.println("Pressão: " + String(dados.pressao, 2) + " hPa");
-  Serial.println("=====================");
-  
+
+  Serial.printf("=== DADOS COLETADOS ===\nTemperatura: %.2f°C\nUmidade: %.2f%%\nPressão: %.2f hPa\n=====================\n",
+                dados.temperatura, dados.umidade, dados.pressao);
+
   dados.valida = true;
   return dados;
 }
+
+
+
+
 
 void saveConfig() {
   EEPROM.put(0, config);
@@ -452,92 +494,171 @@ bool fazer_login() {
   }
 }
 
+// bool enviar_dados_api(SensorData dados) {
+//   if (jwt_token == "") {
+//     Serial.println("Token JWT não disponível");
+//     return false;
+//   }
+  
+//   // Configurar cliente HTTPS
+//   WiFiClientSecure client;
+//   client.setInsecure(); // Para desenvolvimento - aceita qualquer certificado SSL
+  
+//   HTTPClient http;
+//   http.begin(client, String(api_base_url) + "/leituras");
+//   http.addHeader("Content-Type", "application/json");
+//   http.addHeader("Authorization", "Bearer " + jwt_token);
+  
+//   // Configurar timeout para HTTPS
+//   http.setTimeout(15000); // 15 segundos
+  
+//   // Criar timestamp atual (formato ISO)
+//   String timestamp = obter_timestamp_iso();
+  
+//   // Formatar valores com 2 casas decimais
+//   String temperatura_formatada = String(dados.temperatura, 2);
+//   String umidade_formatada = String(dados.umidade, 2);
+//   String pressao_formatada = String(dados.pressao, 2);
+  
+//   // Criar JSON com os dados formatados
+//   DynamicJsonDocument doc(1024);
+//   doc["temperatura"] = temperatura_formatada.toFloat();
+//   doc["umidade"] = umidade_formatada.toFloat();
+  
+//   // Só incluir pressão se for um valor válido
+//   if (dados.pressao > 0) {
+//     doc["pressao"] = pressao_formatada.toFloat();
+//   }
+  
+//   doc["lote"] = lote_id;
+//   doc["data_inicial"] = timestamp;
+//   doc["data_final"] = dataFinalLote;
+  
+//   String json_string;
+//   serializeJson(doc, json_string);
+  
+//   Serial.println("Enviando dados para API via HTTPS...");
+//   Serial.println("Valores formatados:");
+//   Serial.println("  Temperatura: " + temperatura_formatada + "°C");
+//   Serial.println("  Umidade: " + umidade_formatada + "%");
+//   if (dados.pressao > 0) {
+//     Serial.println("  Pressão: " + pressao_formatada + " hPa");
+//   }
+//   Serial.println("JSON: " + json_string);
+  
+//   int httpResponseCode = http.POST(json_string);
+  
+//   if (httpResponseCode == 201) {
+//     String response = http.getString();
+//     Serial.println("Dados enviados com sucesso!");
+//     Serial.println("Resposta: " + response);
+//     http.end();
+//     contadorEnvioDados = contadorEnvioDados + 1;
+//     snprintf(linha4, sizeof(linha4), "PCT SUCESSO: %d", contadorEnvioDados);
+//     String textoContador = String(linha4);
+//     logLinha4.write(textoContador);
+  
+//     return true;
+//   } else {
+//     Serial.print("Erro ao enviar dados. Código HTTP: ");
+//     Serial.println(httpResponseCode);
+//     String response = http.getString();
+//     Serial.println("Resposta: " + response);
+    
+//     // Se token inválido, limpar para forçar novo login
+//     if (httpResponseCode == 401) {
+//       Serial.println("Token inválido. Limpando token para novo login.");
+//       jwt_token = "";
+//     }
+    
+//     http.end();
+//     contadorEnvioDadosErro = contadorEnvioDadosErro + 1;
+//     snprintf(linha5, sizeof(linha5), "PCT ERRO: %d", contadorEnvioDadosErro);
+//     String textoContadorErro = String(linha5);
+//     logLinha5.write(textoContadorErro);
+    
+//     return false;
+//   }
+// }
+
 bool enviar_dados_api(SensorData dados) {
-  if (jwt_token == "") {
+  if (jwt_token.isEmpty()) {
     Serial.println("Token JWT não disponível");
     return false;
   }
-  
-  // Configurar cliente HTTPS
+
   WiFiClientSecure client;
-  client.setInsecure(); // Para desenvolvimento - aceita qualquer certificado SSL
-  
+  client.setInsecure();
+
   HTTPClient http;
-  http.begin(client, String(api_base_url) + "/leituras");
+  char url[128];
+  snprintf(url, sizeof(url), "%s/leituras", api_base_url);
+  if (!http.begin(client, url)) {
+    Serial.println("Erro ao iniciar conexão HTTPS");
+    return false;
+  }
+
   http.addHeader("Content-Type", "application/json");
-  http.addHeader("Authorization", "Bearer " + jwt_token);
-  
-  // Configurar timeout para HTTPS
-  http.setTimeout(15000); // 15 segundos
-  
-  // Criar timestamp atual (formato ISO)
+  String authHeader = "Bearer " + jwt_token;
+  http.addHeader("Authorization", authHeader);
+  http.setTimeout(15000);
+
+  // Timestamp ISO
   String timestamp = obter_timestamp_iso();
-  
-  // Formatar valores com 2 casas decimais
-  String temperatura_formatada = String(dados.temperatura, 2);
-  String umidade_formatada = String(dados.umidade, 2);
-  String pressao_formatada = String(dados.pressao, 2);
-  
-  // Criar JSON com os dados formatados
-  DynamicJsonDocument doc(1024);
-  doc["temperatura"] = temperatura_formatada.toFloat();
-  doc["umidade"] = umidade_formatada.toFloat();
-  
-  // Só incluir pressão se for um valor válido
-  if (dados.pressao > 0) {
-    doc["pressao"] = pressao_formatada.toFloat();
-  }
-  
-  doc["lote"] = lote_id;
-  doc["data_inicial"] = timestamp;
-  doc["data_final"] = dataFinalLote;
-  
-  String json_string;
-  serializeJson(doc, json_string);
-  
+
+  // Buffer fixo para JSON
+  char json_string[512];
+  int len = snprintf(
+    json_string, sizeof(json_string),
+    "{\"temperatura\":%.2f,\"umidade\":%.2f%s\"lote\":\"%s\",\"data_inicial\":\"%s\",\"data_final\":\"%s\"}",
+    dados.temperatura,
+    dados.umidade,
+    (dados.pressao > 0) ? 
+      (String(",\"pressao\":") + String(dados.pressao, 2) + ",").c_str() : "",
+    lote_id,
+    timestamp.c_str(),
+    dataFinalLote
+  );
+
   Serial.println("Enviando dados para API via HTTPS...");
-  Serial.println("Valores formatados:");
-  Serial.println("  Temperatura: " + temperatura_formatada + "°C");
-  Serial.println("  Umidade: " + umidade_formatada + "%");
-  if (dados.pressao > 0) {
-    Serial.println("  Pressão: " + pressao_formatada + " hPa");
-  }
-  Serial.println("JSON: " + json_string);
-  
-  int httpResponseCode = http.POST(json_string);
-  
+  Serial.printf("  Temperatura: %.2f°C\n  Umidade: %.2f%%\n", dados.temperatura, dados.umidade);
+  if (dados.pressao > 0) Serial.printf("  Pressão: %.2f hPa\n", dados.pressao);
+  Serial.println("JSON:");
+  Serial.println(json_string);
+
+  int httpResponseCode = http.POST((uint8_t*)json_string, len);
+  String response = http.getString();
+
   if (httpResponseCode == 201) {
-    String response = http.getString();
     Serial.println("Dados enviados com sucesso!");
     Serial.println("Resposta: " + response);
-    http.end();
-    contadorEnvioDados = contadorEnvioDados + 1;
+
+    contadorEnvioDados++;
     snprintf(linha4, sizeof(linha4), "PCT SUCESSO: %d", contadorEnvioDados);
     String textoContador = String(linha4);
     logLinha4.write(textoContador);
-  
+
+    http.end();
     return true;
   } else {
-    Serial.print("Erro ao enviar dados. Código HTTP: ");
-    Serial.println(httpResponseCode);
-    String response = http.getString();
+    Serial.printf("Erro ao enviar dados. Código HTTP: %d\n", httpResponseCode);
     Serial.println("Resposta: " + response);
-    
-    // Se token inválido, limpar para forçar novo login
+
     if (httpResponseCode == 401) {
       Serial.println("Token inválido. Limpando token para novo login.");
       jwt_token = "";
     }
-    
-    http.end();
-    contadorEnvioDadosErro = contadorEnvioDadosErro + 1;
+
+    contadorEnvioDadosErro++;
     snprintf(linha5, sizeof(linha5), "PCT ERRO: %d", contadorEnvioDadosErro);
     String textoContadorErro = String(linha5);
     logLinha5.write(textoContadorErro);
-    
+
+    http.end();
     return false;
   }
 }
+
 
 void atualizaStatusServidor() {
   bool status = fazer_login();   // chama sua função
@@ -1347,7 +1468,7 @@ void MotorCentroLeituraOvos() {
     const int DELAY_PARADA = 100;              // Após parada (reduzido)
     
     // 🎯 NOVOS PARÂMETROS DE CENTRALIZAÇÃO
-    const int PASSOS_CENTRALIZACAO = 120;      // Passos para centralizar no ovo
+    const int PASSOS_CENTRALIZACAO = 60;       // ⭐ 20 passos para centralizar no ovo
     const int PASSOS_AVANCO_OBRIGATORIO = 300; // Passos após leitura
 
     Serial.println("=================================");
@@ -1416,6 +1537,18 @@ void MotorCentroLeituraOvos() {
         if (sensorAtivoDebounce(SENSOR_OPTICO_OVO, DEBOUNCE_OVO)) {
             Serial.println("🥚 OVO DETECTADO!");
             
+            // 🎯 CENTRALIZAÇÃO: Avança 20 passos para centralizar sensor no ovo
+            Serial.println("🎯 Centralizando sensor no ovo (20 passos)...");
+            for (int i = 0; i < PASSOS_CENTRALIZACAO; i++) {
+                digitalWrite(MOTOR_CENTRO_STEP, HIGH);
+                delayMicroseconds(VELOCIDADE_MOTOR_OVO);
+                digitalWrite(MOTOR_CENTRO_STEP, LOW);
+                delayMicroseconds(VELOCIDADE_MOTOR_OVO);
+            }
+            
+            Serial.println("✓ Sensor centralizado!");
+            delay(DELAY_PARADA); // ⭐ CRÍTICO: TB6600 processa fim dos pulsos
+            
             // ⏸️ PARADA COMPLETA antes de desabilitar
             delay(DELAY_PARADA);
             
@@ -1435,8 +1568,8 @@ void MotorCentroLeituraOvos() {
             digitalWrite(MOTOR_CENTRO_DIR, LOW);
             delay(DELAY_DIR); // ⭐ CRÍTICO: TB6600 processa direção
             
-            // 🚀 AVANÇO OBRIGATÓRIO: 100 passos após leitura
-            Serial.println("🚀 Avançando 100 passos...");
+            // 🚀 AVANÇO OBRIGATÓRIO: 300 passos após leitura
+            Serial.println("🚀 Avançando 300 passos...");
             for (int i = 0; i < PASSOS_AVANCO_OBRIGATORIO; i++) {
                 if (LigarMotor.available()) {
                     int value = LigarMotor.getData();
@@ -1512,8 +1645,6 @@ void MotorCentroLeituraOvos() {
     Serial.println("⏸️  Aguardando próximo andar...");
     Serial.println("=================================");
 }
-
-
 
 
 void leituraOvo() {
