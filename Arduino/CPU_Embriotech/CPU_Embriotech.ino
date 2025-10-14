@@ -212,11 +212,12 @@ SensorData coletar_dados_sensores() {
   
   // Ler DHT22 (temperatura e umidade)
   dados.temperatura = mlx.readObjectTempC();  //Carrega temperatura do Ovo, sensor MLX90614
+  delay(20);
   dados.umidade = humidity.relative_humidity; //Carrega a umidade do AHT10. umidade ambiente
-  
+  delay(20);
   // Ler BMP280 (pressão)
   dados.pressao = bmp.readPressure() / 100.0F; // Converter para hPa carrega os dados de pressao ambiente. 
-  
+  delay(20);
   // Verificar se as leituras são válidas
   if (isnan(dados.temperatura) || isnan(dados.umidade)) {
     Serial.println("Erro: Falha na leitura do sensor Temperatura/Umidade");
@@ -1205,11 +1206,13 @@ void subirAndarPorAndar() {
     bool ultimaLeituraSensores = false;
     int passosAposDeteccao = 0;
     const int PASSOS_PARA_LIBERAR = 300; // Ajuste conforme necessário
+    const int PASSOS_AJUSTE_ALTURA = 50; // Passos para ajuste de altura
     int contadorAndares = 0;
     
     // Variável para controlar pausa
     unsigned long tempoInicioParada = 0;
     bool emParada = false;
+    bool ajusteAlturaFeito = false;
     const unsigned long TEMPO_PARADA = 2000; // 2 segundos
 
     while (!topoAlcancado) {
@@ -1251,13 +1254,31 @@ void subirAndarPorAndar() {
             // NOVO ANDAR DETECTADO!
             contadorAndares++;
             andarDetectado = true;
-            emParada = true;
-            tempoInicioParada = millis();
+            ajusteAlturaFeito = false;
             passosAposDeteccao = 0;
             
             Serial.println("→ Novo andar detectado!");
             Serial.print("   Andar número: ");
             Serial.println(contadorAndares);
+            
+            // === AJUSTE DE ALTURA: 100 PASSOS ===
+            Serial.println("   Executando ajuste de altura (100 passos)...");
+            for (int i = 0; i < PASSOS_AJUSTE_ALTURA; i++) {
+                digitalWrite(MOTOR_DIR_STEP, HIGH);
+                digitalWrite(MOTOR_ESQ_STEP, HIGH);
+                delayMicroseconds(VELOCIDADE_MOTOR);
+                
+                digitalWrite(MOTOR_DIR_STEP, LOW);
+                digitalWrite(MOTOR_ESQ_STEP, LOW);
+                delayMicroseconds(VELOCIDADE_MOTOR);
+            }
+            Serial.println("   Ajuste de altura concluído!");
+            
+            // Após ajuste, inicia parada de 2 segundos
+            emParada = true;
+            tempoInicioParada = millis();
+            ajusteAlturaFeito = true;
+            
             Serial.println("   Motores TRAVADOS por 2 segundos (sem movimento)");
             
             // Chamando função Motor centro.
@@ -1280,7 +1301,7 @@ void subirAndarPorAndar() {
         }
 
         // === CONTAGEM DE PASSOS APÓS DETECÇÃO ===
-        if (andarDetectado && !emParada) {
+        if (andarDetectado && !emParada && ajusteAlturaFeito) {
             passosAposDeteccao++;
             
             if (passosAposDeteccao >= PASSOS_PARA_LIBERAR) {
@@ -1314,17 +1335,20 @@ void subirAndarPorAndar() {
 
 
 
-
 void MotorCentroLeituraOvos() {
     // ⚡ CONFIGURAÇÕES DE ALTA PERFORMANCE
-    const int VELOCIDADE_MOTOR_OVO = 300;      // ⚡ Reduzido de 400 para 250 (MAIS RÁPIDO)
+    const int VELOCIDADE_MOTOR_OVO = 225;      // ⚡ Reduzido de 400 para 250 (MAIS RÁPIDO)
     const int DEBOUNCE_OVO = 10;               // Debounce reduzido para 10ms
-    const int DEBOUNCE_FIM_CURSO = 8;          // Debounce reduzido para 8ms
+    const int DEBOUNCE_FIM_CURSO = 15;          // Debounce reduzido para 8ms
     
     // ⭐ DELAYS CRÍTICOS MÍNIMOS (apenas onde realmente necessário)
     const int DELAY_ENABLE = 150;              // Após habilitar/desabilitar (reduzido)
     const int DELAY_DIR = 150;                 // Após mudar direção (reduzido)
     const int DELAY_PARADA = 100;              // Após parada (reduzido)
+    
+    // 🎯 NOVOS PARÂMETROS DE CENTRALIZAÇÃO
+    const int PASSOS_CENTRALIZACAO = 120;      // Passos para centralizar no ovo
+    const int PASSOS_AVANCO_OBRIGATORIO = 250; // Passos após leitura
 
     Serial.println("=================================");
     Serial.println("🏁 LEITURA DE OVOS - MODO ALTA PERFORMANCE");
@@ -1392,48 +1416,46 @@ void MotorCentroLeituraOvos() {
         if (sensorAtivoDebounce(SENSOR_OPTICO_OVO, DEBOUNCE_OVO)) {
             Serial.println("🥚 OVO DETECTADO!");
             
-            delay(DELAY_PARADA); // Breve parada
+            // ⏸️ PARADA COMPLETA antes de desabilitar
+            delay(DELAY_PARADA);
             
-            // ⭐ DESABILITAR para leitura (não fica freiado)
+            // ⭐ DESABILITAR motor para leitura (não fica freiado)
             desabilitarMotor(MOTOR_CENTRO_ENABLE);
-            delay(DELAY_ENABLE);
+            delay(DELAY_ENABLE); // ⭐ CRÍTICO: TB6600 processa desabilitação
             
-            // Leitura do ovo
+            // 📖 Leitura do ovo
             leituraOvo();
             
-            // ⭐ REABILITAR motor
+            // ⭐ REABILITAR motor - INÍCIO DA SEQUÊNCIA CRÍTICA
+            Serial.println("🔄 Reativando motor...");
             habilitarMotor(MOTOR_CENTRO_ENABLE);
-            delay(DELAY_ENABLE);
+            delay(DELAY_ENABLE); // ⭐ CRÍTICO: TB6600 processa habilitação
             
-            // ⭐ RECONFIGURAR direção DIREITA
+            // ⭐ CONFIGURAR direção DIREITA
             digitalWrite(MOTOR_CENTRO_DIR, LOW);
-            delay(DELAY_DIR);
+            delay(DELAY_DIR); // ⭐ CRÍTICO: TB6600 processa direção
             
-            // Sair da área do sensor rapidamente
-            int passosAposSensor = 0;
-            const int MIN_PASSOS_SAIDA = 60; // Aumentado para garantir saída
-            
-            while (sensorAtivoDebounce(SENSOR_OPTICO_OVO, 5) || passosAposSensor < MIN_PASSOS_SAIDA) {
+            // 🚀 AVANÇO OBRIGATÓRIO: 100 passos após leitura
+            Serial.println("🚀 Avançando 100 passos...");
+            for (int i = 0; i < PASSOS_AVANCO_OBRIGATORIO; i++) {
                 if (LigarMotor.available()) {
                     int value = LigarMotor.getData();
                     if (value == 0) {
-                        Serial.println("⛔ Parada");
+                        Serial.println("⛔ Parada de emergência");
                         delay(DELAY_PARADA);
                         desabilitarMotor(MOTOR_CENTRO_ENABLE);
                         return;
                     }
                 }
-
+                
                 digitalWrite(MOTOR_CENTRO_STEP, HIGH);
                 delayMicroseconds(VELOCIDADE_MOTOR_OVO);
                 digitalWrite(MOTOR_CENTRO_STEP, LOW);
                 delayMicroseconds(VELOCIDADE_MOTOR_OVO);
-                
-                passosAposSensor++;
             }
 
-            Serial.println("   ✓ Ovo processado");
-            delay(50); // Pausa mínima
+            Serial.println("✓ Ovo processado - Pronto para próximo");
+            delay(100); // Pausa de estabilização
             
         } else {
             // ⚡ MOVIMENTO RÁPIDO procurando próximo ovo
@@ -1490,6 +1512,10 @@ void MotorCentroLeituraOvos() {
     Serial.println("⏸️  Aguardando próximo andar...");
     Serial.println("=================================");
 }
+
+
+
+
 void leituraOvo() {
     Serial.println("   📊 Iniciando leitura do ovo...");
     
