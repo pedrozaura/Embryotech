@@ -1206,7 +1206,7 @@ void subirAndarPorAndar() {
     bool ultimaLeituraSensores = false;
     int passosAposDeteccao = 0;
     const int PASSOS_PARA_LIBERAR = 300; // Ajuste conforme necessário
-    const int PASSOS_AJUSTE_ALTURA = 50; // Passos para ajuste de altura
+    const int PASSOS_AJUSTE_ALTURA = 65; // Passos para ajuste de altura
     int contadorAndares = 0;
     
     // Variável para controlar pausa
@@ -1348,7 +1348,7 @@ void MotorCentroLeituraOvos() {
     
     // 🎯 NOVOS PARÂMETROS DE CENTRALIZAÇÃO
     const int PASSOS_CENTRALIZACAO = 120;      // Passos para centralizar no ovo
-    const int PASSOS_AVANCO_OBRIGATORIO = 250; // Passos após leitura
+    const int PASSOS_AVANCO_OBRIGATORIO = 300; // Passos após leitura
 
     Serial.println("=================================");
     Serial.println("🏁 LEITURA DE OVOS - MODO ALTA PERFORMANCE");
