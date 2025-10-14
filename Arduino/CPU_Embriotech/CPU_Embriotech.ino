@@ -681,7 +681,7 @@ void configurarFinsDeCorso() {
   pinMode(FIM_CURSO_CENTRO_1, INPUT);
   pinMode(FIM_CURSO_CENTRO_2, INPUT);
 
-  pinMode(pinoSensorParada, INPUT);
+  pinMode(SENSOR_OPTICO_OVO, INPUT);
   
   Serial.println("Fins de curso configurados");
 
@@ -1260,6 +1260,9 @@ void subirAndarPorAndar() {
             Serial.println(contadorAndares);
             Serial.println("   Motores TRAVADOS por 2 segundos (sem movimento)");
             
+            // Chamando função Motor centro.
+            MotorCentroLeituraOvos();
+
             // IMPORTANTE: Motores continuam HABILITADOS (travados)
             // Não enviamos pulsos STEP = motor fica parado com torque máximo
         }
@@ -1310,6 +1313,206 @@ void subirAndarPorAndar() {
 }
 
 
+
+
+void MotorCentroLeituraOvos() {
+    // ⚡ CONFIGURAÇÕES DE ALTA PERFORMANCE
+    const int VELOCIDADE_MOTOR_OVO = 300;      // ⚡ Reduzido de 400 para 250 (MAIS RÁPIDO)
+    const int DEBOUNCE_OVO = 10;               // Debounce reduzido para 10ms
+    const int DEBOUNCE_FIM_CURSO = 8;          // Debounce reduzido para 8ms
+    
+    // ⭐ DELAYS CRÍTICOS MÍNIMOS (apenas onde realmente necessário)
+    const int DELAY_ENABLE = 150;              // Após habilitar/desabilitar (reduzido)
+    const int DELAY_DIR = 150;                 // Após mudar direção (reduzido)
+    const int DELAY_PARADA = 100;              // Após parada (reduzido)
+
+    Serial.println("=================================");
+    Serial.println("🏁 LEITURA DE OVOS - MODO ALTA PERFORMANCE");
+    Serial.println("⚡ Motor Centro Ativado");
+    Serial.println("=================================");
+
+    // ========================================
+    // ETAPA 1: HABILITAR MOTOR
+    // ========================================
+    habilitarMotor(MOTOR_CENTRO_ENABLE);
+    delay(DELAY_ENABLE); // Estabilização mínima necessária
+
+    // ========================================
+    // ETAPA 2: POSICIONAR NO INÍCIO (ESQUERDA)
+    // ========================================
+    Serial.println("📍 Posicionando à esquerda...");
+    digitalWrite(MOTOR_CENTRO_DIR, HIGH); // Direção: ESQUERDA
+    delay(DELAY_DIR); // ⭐ CRÍTICO: TB6600 processa direção
+    
+    // Movimento rápido até fim de curso esquerdo
+    while (!sensorAtivoDebounce(FIM_CURSO_CENTRO_1, DEBOUNCE_FIM_CURSO)) {
+        if (LigarMotor.available()) {
+            int value = LigarMotor.getData();
+            if (value == 0) {
+                Serial.println("⛔ Parada");
+                delay(DELAY_PARADA);
+                desabilitarMotor(MOTOR_CENTRO_ENABLE);
+                return;
+            }
+        }
+        
+        digitalWrite(MOTOR_CENTRO_STEP, HIGH);
+        delayMicroseconds(VELOCIDADE_MOTOR_OVO);
+        digitalWrite(MOTOR_CENTRO_STEP, LOW);
+        delayMicroseconds(VELOCIDADE_MOTOR_OVO);
+    }
+    
+    Serial.println("✓ Posição inicial alcançada");
+    delay(DELAY_PARADA);
+    
+    // ========================================
+    // ETAPA 3: INVERTER PARA DIREITA
+    // ========================================
+    Serial.println("🔄 Direção → DIREITA");
+    digitalWrite(MOTOR_CENTRO_DIR, LOW); // Direção: DIREITA
+    delay(DELAY_DIR); // ⭐ CRÍTICO: TB6600 processa inversão
+    
+    Serial.println("🔍 Iniciando varredura rápida...");
+    
+    // ========================================
+    // ETAPA 4: VARREDURA RÁPIDA (LOOP PRINCIPAL)
+    // ========================================
+    while (!sensorAtivoDebounce(FIM_CURSO_CENTRO_2, DEBOUNCE_FIM_CURSO)) {
+        if (LigarMotor.available()) {
+            int value = LigarMotor.getData();
+            if (value == 0) {
+                Serial.println("⛔ Parada");
+                delay(DELAY_PARADA);
+                desabilitarMotor(MOTOR_CENTRO_ENABLE);
+                return;
+            }
+        }
+
+        // ⭐ DETECÇÃO DE OVO
+        if (sensorAtivoDebounce(SENSOR_OPTICO_OVO, DEBOUNCE_OVO)) {
+            Serial.println("🥚 OVO DETECTADO!");
+            
+            delay(DELAY_PARADA); // Breve parada
+            
+            // ⭐ DESABILITAR para leitura (não fica freiado)
+            desabilitarMotor(MOTOR_CENTRO_ENABLE);
+            delay(DELAY_ENABLE);
+            
+            // Leitura do ovo
+            leituraOvo();
+            
+            // ⭐ REABILITAR motor
+            habilitarMotor(MOTOR_CENTRO_ENABLE);
+            delay(DELAY_ENABLE);
+            
+            // ⭐ RECONFIGURAR direção DIREITA
+            digitalWrite(MOTOR_CENTRO_DIR, LOW);
+            delay(DELAY_DIR);
+            
+            // Sair da área do sensor rapidamente
+            int passosAposSensor = 0;
+            const int MIN_PASSOS_SAIDA = 60; // Aumentado para garantir saída
+            
+            while (sensorAtivoDebounce(SENSOR_OPTICO_OVO, 5) || passosAposSensor < MIN_PASSOS_SAIDA) {
+                if (LigarMotor.available()) {
+                    int value = LigarMotor.getData();
+                    if (value == 0) {
+                        Serial.println("⛔ Parada");
+                        delay(DELAY_PARADA);
+                        desabilitarMotor(MOTOR_CENTRO_ENABLE);
+                        return;
+                    }
+                }
+
+                digitalWrite(MOTOR_CENTRO_STEP, HIGH);
+                delayMicroseconds(VELOCIDADE_MOTOR_OVO);
+                digitalWrite(MOTOR_CENTRO_STEP, LOW);
+                delayMicroseconds(VELOCIDADE_MOTOR_OVO);
+                
+                passosAposSensor++;
+            }
+
+            Serial.println("   ✓ Ovo processado");
+            delay(50); // Pausa mínima
+            
+        } else {
+            // ⚡ MOVIMENTO RÁPIDO procurando próximo ovo
+            digitalWrite(MOTOR_CENTRO_STEP, HIGH);
+            delayMicroseconds(VELOCIDADE_MOTOR_OVO);
+            digitalWrite(MOTOR_CENTRO_STEP, LOW);
+            delayMicroseconds(VELOCIDADE_MOTOR_OVO);
+        }
+    }
+    
+    // ========================================
+    // ETAPA 5: FIM DE CURSO DIREITO ATINGIDO
+    // ========================================
+    Serial.println("→ Fim de curso DIREITO");
+    Serial.println("✓ Varredura concluída!");
+    delay(DELAY_PARADA);
+    
+    // ========================================
+    // ETAPA 6: RETORNAR RÁPIDO PARA ESQUERDA
+    // ========================================
+    Serial.println("🔄 Retornando → ESQUERDA");
+    digitalWrite(MOTOR_CENTRO_DIR, HIGH);
+    delay(DELAY_DIR); // ⭐ CRÍTICO: TB6600 processa inversão
+    
+    // Retorno rápido
+    while (!sensorAtivoDebounce(FIM_CURSO_CENTRO_1, DEBOUNCE_FIM_CURSO)) {
+        if (LigarMotor.available()) {
+            int value = LigarMotor.getData();
+            if (value == 0) {
+                Serial.println("⛔ Parada");
+                delay(DELAY_PARADA);
+                desabilitarMotor(MOTOR_CENTRO_ENABLE);
+                return;
+            }
+        }
+        
+        digitalWrite(MOTOR_CENTRO_STEP, HIGH);
+        delayMicroseconds(VELOCIDADE_MOTOR_OVO);
+        digitalWrite(MOTOR_CENTRO_STEP, LOW);
+        delayMicroseconds(VELOCIDADE_MOTOR_OVO);
+    }
+    
+    Serial.println("✓ Posição inicial");
+    delay(DELAY_PARADA);
+    
+    // ========================================
+    // ETAPA 7: DESABILITAR MOTOR
+    // ========================================
+    desabilitarMotor(MOTOR_CENTRO_ENABLE);
+    delay(DELAY_ENABLE);
+    
+    Serial.println("=================================");
+    Serial.println("💤 Motor Desabilitado");
+    Serial.println("⏸️  Aguardando próximo andar...");
+    Serial.println("=================================");
+}
+void leituraOvo() {
+    Serial.println("   📊 Iniciando leitura do ovo...");
+    
+    // Coletar dados dos sensores
+    SensorData dados = coletar_dados_sensores();
+    
+    if (dados.valida) {
+        Serial.println("   ✓ Dados coletados:");
+        Serial.println("     Temperatura: " + String(dados.temperatura, 2) + "°C");
+        Serial.println("     Umidade: " + String(dados.umidade, 2) + "%");
+        Serial.println("     Pressão: " + String(dados.pressao, 2) + " hPa");
+        
+        // Enviar dados para API (se conectado)
+        if (WiFi.status() == WL_CONNECTED && jwt_token != "") {
+            enviar_dados_api(dados);
+        }
+    } else {
+        Serial.println("   ✗ Erro na coleta de dados do ovo");
+    }
+    
+    // Pequena pausa para estabilização
+    delay(500);
+}
 
 
 // ========== LOOP PRINCIPAL ==========

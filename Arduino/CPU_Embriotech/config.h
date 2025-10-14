@@ -52,7 +52,7 @@
 // GPIOs 16 e 17 agora estão livres para comunicação serial
 // Exemplo de uso: Serial2.begin(115200, SERIAL_8N1, 16, 17); // RX=16, TX=17
 
-#define pinoSensorParada 23
+#define SENSOR_OPTICO_OVO 23
 #define pinoLDR 2
 
 // Configurando portas de Saidas para Serial2 utilizado no Display.
@@ -84,7 +84,7 @@ const char* api_base_url = "https://embryo.outsideagro.tech/api";
 const char* username = "processador";     // Nome do usuário para o ESP32
 const char* user_password = "Outside@123456";  // Senha do usuário para o ESP32
 
-const char* lote_id = "ESP32_LOTE_ZAURA"; // Identificador do lote de ovos
+const char* lote_id = "COOPLT1322"; // Identificador do lote de ovos
 
 const char* dataFinalLote = "2025-12-15T23:59:59"; // Data final do lote de ovos deve manter esse formato que é o do banco de dados. 
 
