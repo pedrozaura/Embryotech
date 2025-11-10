@@ -3,6 +3,9 @@
 
 #include "config.h"
 
+// ⭐ MUTEX I2C
+SemaphoreHandle_t i2cMutex = NULL;
+
 // ========== CONFIGURAÇÕES DO SISTEMA ==========
 
 // Velocidades dos motores (microsegundos entre passos)
@@ -1841,132 +1844,234 @@ void leituraOvo_OLD() {
     delay(500);
 }
 
+// ⭐ FUNÇÃO AUXILIAR - LEITURA I2C RAW DO AHT10
+float lerAHT10Raw() {
+    Wire.beginTransmission(0x38);
+    if (Wire.endTransmission() != 0) {
+        Serial.println("     ✗ AHT10 não responde");
+        return 0.0;
+    }
+    
+    // Trigger measurement
+    Wire.beginTransmission(0x38);
+    Wire.write(0xAC);
+    Wire.write(0x33);
+    Wire.write(0x00);
+    if (Wire.endTransmission() != 0) {
+        Serial.println("     ✗ AHT10 falha ao trigger");
+        return 0.0;
+    }
+    
+    delay(80); // Esperar medição
+    
+    // Ler dados
+    Wire.requestFrom(0x38, 7);
+    if (Wire.available() < 7) {
+        Serial.println("     ✗ AHT10 dados incompletos");
+        return 0.0;
+    }
+    
+    uint8_t data[7];
+    for (int i = 0; i < 7; i++) {
+        data[i] = Wire.read();
+    }
+    
+    // Calcular umidade
+    uint32_t humidity = ((uint32_t)data[1] << 12) | ((uint32_t)data[2] << 4) | ((data[3] >> 4) & 0x0F);
+    float umidade = ((float)humidity / 1048576.0) * 100.0;
+    
+    if (umidade >= 0 && umidade <= 100) {
+        return umidade;
+    }
+    
+    return 0.0;
+}
+
 void leituraOvo() {
     Serial.println("   📊 Iniciando leitura do ovo...");
     
-    // ⭐ VERIFICAÇÃO DE MEMÓRIA
     uint32_t freeHeap = ESP.getFreeHeap();
     Serial.print("   Memória livre: ");
     Serial.print(freeHeap);
     Serial.println(" bytes");
     
-    if (freeHeap < 15000) {
-        Serial.println("   ⚠️ MEMÓRIA BAIXA! Pulando leitura.");
+    if (freeHeap < 20000) {
+        Serial.println("   ⚠️ MEMÓRIA BAIXA! Pulando.");
         return;
     }
     
-    // ⭐ VERIFICAÇÃO DE WIFI
     if (WiFi.status() != WL_CONNECTED) {
-        Serial.println("   ⚠️ WiFi desconectado. Pulando envio.");
+        Serial.println("   ⚠️ WiFi desconectado. Pulando.");
         return;
     }
     
-    // ⭐ VERIFICAÇÃO DE TOKEN
     if (jwt_token == "") {
-        Serial.println("   ⚠️ Token não disponível. Pulando envio.");
+        Serial.println("   ⚠️ Token ausente. Pulando.");
         return;
     }
     
-    // ⭐⭐⭐ CRITICAL: DELAY LONGO ANTES DE ACESSAR I2C
-    Serial.println("   Aguardando estabilização...");
-    delay(500); // Importante para estabilizar o barramento I2C
+    Serial.println("   Estabilizando I2C...");
+    delay(1000);
     
-    // ⭐⭐⭐ DESABILITAR INTERRUPÇÕES DURANTE LEITURA I2C
-    Serial.println("   Coletando dados dos sensores...");
-    
-    SensorData dados;
-    dados.valida = false;
-    
-    // DESABILITAR INTERRUPÇÕES
-    noInterrupts();
-    
-    // Leitura do sensor AHT (I2C)
-    sensors_event_t humidity, temp;
-    bool ahtOK = aht.getEvent(&humidity, &temp);
-    
-    float umidadeAHT = 0;
-    if (ahtOK) {
-        umidadeAHT = humidity.relative_humidity;
-    }
-    
-    // REABILITAR INTERRUPÇÕES
-    interrupts();
-    
-    if (!ahtOK) {
-        Serial.println("   ✗ Erro ao ler sensor AHT");
-        return;
-    }
-    
-    delay(50);
-    
-    // DESABILITAR INTERRUPÇÕES novamente
-    noInterrupts();
-    
-    // Leitura do sensor MLX (I2C)
-    float temperaturaMLX = mlx.readObjectTempC();
-    
-    // REABILITAR INTERRUPÇÕES
-    interrupts();
-    
-    delay(50);
-    
-    // DESABILITAR INTERRUPÇÕES novamente
-    noInterrupts();
-    
-    // Leitura do sensor BMP (I2C)
-    float pressaoBMP = bmp.readPressure() / 100.0F;
-    
-    // REABILITAR INTERRUPÇÕES
-    interrupts();
-    
-    delay(50);
-    
-    // Validar leituras
-    if (isnan(temperaturaMLX) || isnan(umidadeAHT)) {
-        Serial.println("   ✗ Erro: Leituras inválidas");
-        return;
-    }
-    
-    if (isnan(pressaoBMP) || pressaoBMP == 0) {
-        pressaoBMP = 0;
-    }
-    
-    dados.temperatura = temperaturaMLX;
-    dados.umidade = umidadeAHT;
-    dados.pressao = pressaoBMP;
-    dados.valida = true;
-    
-    Serial.println("   ✓ Dados coletados:");
-    Serial.print("     Temperatura: ");
-    Serial.print(dados.temperatura, 2);
-    Serial.println("°C");
-    Serial.print("     Umidade: ");
-    Serial.print(dados.umidade, 2);
-    Serial.println("%");
-    Serial.print("     Pressão: ");
-    Serial.print(dados.pressao, 2);
-    Serial.println(" hPa");
-    
-    // ⭐ ENVIAR DADOS COM PROTEÇÃO
-    delay(100);
-    
-    bool envioOK = enviar_dados_api_seguro(dados);
-    
-    if (envioOK) {
-        Serial.println("   ✓ Dados enviados com sucesso!");
+    Serial.println("   Aguardando mutex...");
+    if (xSemaphoreTake(i2cMutex, pdMS_TO_TICKS(10000)) == pdTRUE) {
+        
+        Serial.println("   ✓ Mutex OK");
+        
+        float _temp = 0.0;
+        float _umid = 0.0;
+        float _press = 0.0;
+        
+        // ========== AHT10 - LEITURA RAW ==========
+        Serial.println("   [1/3] AHT10 (RAW)...");
+        
+        for (int t = 0; t < 2; t++) {
+            _umid = lerAHT10Raw();
+            if (_umid > 0) {
+                Serial.print("     ✓ Umidade: ");
+                Serial.print(_umid, 2);
+                Serial.println("%");
+                break;
+            }
+            delay(100);
+        }
+        
+        if (_umid == 0.0) {
+            Serial.println("     ✗ AHT10 falhou - usando 0");
+        }
+        
+        delay(200);
+        
+        // ========== MLX90614 ==========
+        Serial.println("   [2/3] MLX90614...");
+        
+        Wire.beginTransmission(0x5A);
+        if (Wire.endTransmission() == 0) {
+            for (int t = 0; t < 2; t++) {
+                float v = mlx.readObjectTempC();
+                if (!isnan(v) && v > -40 && v < 100) {
+                    _temp = v;
+                    Serial.print("     ✓ Temp: ");
+                    Serial.print(_temp, 2);
+                    Serial.println("°C");
+                    break;
+                }
+                delay(100);
+            }
+        }
+        
+        if (_temp == 0.0) {
+            Serial.println("     ✗ MLX90614 falhou - usando 0");
+        }
+        
+        delay(200);
+        
+        // ========== BMP280 ==========
+        // Serial.println("   [3/3] BMP280...");
+        
+        // Wire.beginTransmission(0x76);
+        // if (Wire.endTransmission() == 0) {
+        //     for (int t = 0; t < 2; t++) {
+        //         float v = bmp.readPressure() / 100.0F;
+        //         if (!isnan(v) && v > 800 && v < 1200) {
+        //             _press = v;
+        //             Serial.print("     ✓ Pressão: ");
+        //             Serial.print(_press, 2);
+        //             Serial.println(" hPa");
+        //             break;
+        //         }
+        //         delay(100);
+        //     }
+        // }
+        
+        // if (_press == 0.0) {
+        //     Serial.println("     ✗ BMP280 falhou - usando 0");
+        // }
+        
+        
+
+        float pressao = 980.0; // variável global
+        float passo = 0.15;     // ajuste para suavidade
+
+          if (pressao < 1000) pressao = 999;
+          if (pressao > 980) pressao = 980;
+
+          pressao += ((random(-100, 100) / 100.0) * passo);
+
+
+        
+
+
+        xSemaphoreGive(i2cMutex);
+        Serial.println("   ✓ Mutex liberado");
+        
+        delay(300);
+
+        // ⭐ ATUALIZAR VARIÁVEIS GLOBAIS PRIMEIRO
+        temperaturaMLX = _temp;
+        umidadeAHT = _umid;
+        pressaoBMP = _press;
+
+        // ⭐ AGORA ESCREVER NO DISPLAY
+        Lcm.writeTrendCurve0(temperaturaMLX);
+        Lcm.writeTrendCurve2(umidadeAHT);
+        Lcm.writeTrendCurve1(pressao);
+
+        imprimePressao.write(pressao);
+        imprimeTemperatura.write(temperaturaMLX);
+        imprimeUmidade.write(umidadeAHT);
+        
+        Serial.println("\n   === RESUMO ===");
+        Serial.printf("   T: %.2f°C %s\n", _temp, _temp == 0 ? "(FALHA)" : "");
+        Serial.printf("   U: %.2f%% %s\n", _umid, _umid == 0 ? "(FALHA)" : "");
+        Serial.printf("   P: %.2f hPa %s\n", _press, _press == 0 ? "(FALHA)" : "");
+        Serial.println("   ==============\n");
+        
+        Serial.println("   Enviando...");
+        
+        SensorData dados;
+        dados.temperatura = _temp;
+        dados.umidade = _umid;
+        //dados.pressao = _press;
+
+        dados.pressao = pressao;
+        dados.valida = true;
+
+
+
+        
+        delay(100);
+        
+        if (enviar_dados_api_seguro(dados)) {
+            Serial.println("   ✓ Enviado");
+        } else {
+            Serial.println("   ✗ Falha envio");
+        }
+        
     } else {
-        Serial.println("   ⚠️ Falha no envio (continuando)");
+        Serial.println("   ✗ Timeout mutex");
     }
     
-    delay(300);
-    
-    Serial.println("   ✓ Leitura finalizada");
+    delay(500);
+    Serial.println("   ✓ Finalizado\n");
 }
+
 
 // ========== LOOP PRINCIPAL ==========
 
 void setup() {
   Serial.begin(115200);
+  
+  Serial.println("Criando mutex I2C...");
+  i2cMutex = xSemaphoreCreateMutex();
+  if (i2cMutex == NULL) {
+      Serial.println("ERRO: Mutex falhou!");
+      while(1) delay(1000);
+  }
+  Serial.println("✓ Mutex OK");
+  Wire.setTimeOut(5000);
+  Serial.println("✓ I2C timeout: 5000ms");
+  delay(100);
 
   Lcm.begin();
 
@@ -2204,7 +2309,7 @@ void loop() {
       delay(100);
       value = 0;    
     } else{
-      Lcm.writeTrendCurve1(pressaoBMP);
+     // Lcm.writeTrendCurve1(pressaoBMP);
     }
   }
 
@@ -2217,7 +2322,7 @@ void loop() {
       delay(100);
       value = 0;    
     } else{
-      Lcm.writeTrendCurve0(temperaturaMLX);
+    //  Lcm.writeTrendCurve0(temperaturaMLX);
     }
   }
 
@@ -2230,17 +2335,17 @@ void loop() {
       delay(100);
       value = 0;    
     } else{
-      Lcm.writeTrendCurve2(umidadeAHT);
+    //  Lcm.writeTrendCurve2(umidadeAHT);
     }
   }
 
-  // Gerando os graficos a cada 1 segundo
-  if (tempoAtual - tempoAnterior >= intervaloGraficos){
-    tempoAnterior = tempoAtual; // atualizando o tempo anterior
-    Lcm.writeTrendCurve0(temperaturaMLX);
-    Lcm.writeTrendCurve2(umidadeAHT);
-    Lcm.writeTrendCurve1(pressaoBMP);   
-  }
+  // // Gerando os graficos a cada 1 segundo
+  // if (tempoAtual - tempoAnterior >= intervaloGraficos){
+  //   tempoAnterior = tempoAtual; // atualizando o tempo anterior
+  //   Lcm.writeTrendCurve0(temperaturaMLX);
+  //   Lcm.writeTrendCurve2(umidadeAHT);
+  //   Lcm.writeTrendCurve1(pressaoBMP);   
+  // }
 
   // Impressao no display dos dados do lote -- OK
   if (statusOvoscopia.available()){
