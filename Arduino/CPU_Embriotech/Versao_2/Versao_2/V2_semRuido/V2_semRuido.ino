@@ -2354,12 +2354,13 @@ void loop() {
   if (statusOvoscopia.available()){
     int value = statusOvoscopia.getData();
     if(value == 14){
-      char loteOvos[20] = "FagSummit_2025";
+      //char loteOvos[20] = "TCC-2025";
+      strcpy(loteOvos, lote_id);
       String textoLote = String(loteOvos); // Convertendo o Char para String para gravar no Display e escrevendo no Display
       loteOvosDisplay.write(textoLote);
       Serial.println(textoLote); 
       
-      char dataInicialOvos[20] = "30/09/2025";
+      char dataInicialOvos[20] = "27/11/2025";
       String textoLote2 = String(dataInicialOvos);
       dataInicialLoteDisplay.write(textoLote2);
       Serial.println(textoLote2);

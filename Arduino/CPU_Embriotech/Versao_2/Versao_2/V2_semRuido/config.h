@@ -84,7 +84,7 @@ const char* api_base_url = "https://embryo.outsideagro.tech/api";
 const char* username = "processador";     // Nome do usuário para o ESP32
 const char* user_password = "Outside@123456";  // Senha do usuário para o ESP32
 
-const char* lote_id = "FagSummit2025"; // Identificador do lote de ovos
+const char* lote_id = "TCC-2025"; // Identificador do lote de ovos
 
 const char* dataFinalLote = "2025-12-15T23:59:59"; // Data final do lote de ovos deve manter esse formato que é o do banco de dados. 
 
